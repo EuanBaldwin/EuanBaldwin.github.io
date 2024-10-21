@@ -2634,9 +2634,10 @@ input, select, textarea {
 
 
 
-/* Style for the skill sliders */
+/* Style for the skill bars */
 .skill-container {
-    margin: 20px 0;
+    width: 45%;
+    margin: 15px;
 }
 
 .skill-title {
@@ -2644,35 +2645,27 @@ input, select, textarea {
     margin-bottom: 5px;
 }
 
-.slider {
-    -webkit-appearance: none;
+.skills-row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.progress-bar {
+    height: 20px;
+    background-color: #8ebebc;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
     width: 100%;
-    height: 10px;
     background: #ddd;
-    border-radius: 5px;
-    outline: none;
-    opacity: 0.7;
-    transition: opacity 0.2s;
 }
 
-.slider:hover {
-    opacity: 1;
-}
-
-.slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    background: #8ebebc;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-.slider::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    background: #8ebebc;
-    border-radius: 50%;
-    cursor: pointer;
+.progress-bar::before {
+    content: '';
+    display: block;
+    height: 100%;
+    background-color: #8ebebc;
+    width: inherit;
+    border-radius: 10px;
 }
