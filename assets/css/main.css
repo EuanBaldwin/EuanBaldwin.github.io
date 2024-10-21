@@ -2632,17 +2632,21 @@ input, select, textarea {
 
 	}
 
-
-
 /* Style for the skill bars */
 .skill-container {
-    width: 45%;
-    margin: 15px;
+    width: 48%;
+    margin-bottom: 20px;
 }
 
 .skill-title {
     font-size: 1.2em;
     margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.skill-percentage {
+    font-weight: bold;
 }
 
 .skills-row {
@@ -2652,20 +2656,15 @@ input, select, textarea {
 }
 
 .progress-bar {
-    height: 20px;
-    background-color: #8ebebc;
+    background-color: #ddd;
     border-radius: 10px;
-    position: relative;
-    overflow: hidden;
+    height: 20px;
     width: 100%;
-    background: #ddd;
+    position: relative;
 }
 
-.progress-bar::before {
-    content: '';
-    display: block;
-    height: 100%;
+.progress {
     background-color: #8ebebc;
-    width: inherit;
+    height: 100%;
     border-radius: 10px;
 }
