@@ -2645,10 +2645,6 @@ input, select, textarea {
     justify-content: space-between;
 }
 
-.skill-percentage {
-    font-weight: bold;
-}
-
 .skills-row {
     display: flex;
     justify-content: space-between;
