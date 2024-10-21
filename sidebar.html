@@ -1,35 +1,51 @@
-<html>
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-		<link rel="stylesheet" href="assets/css/main.css" />
-	</head>
-	<body class="is-preload">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SDG Project</title>
 
-		<!-- Header -->
-			<div id="header">
-				<div class="top">
-					<!-- Logo -->
-						<div id="logo">
-							<span class="image avatar48"><img src="images/IMG_5628.jpeg" alt="" /></span>
-							<h1 id="title">Euan Baldwin</h1>
-							<p>MSc in Robotics</p>
-						</div>
-					<!-- Nav -->
-						<nav id="nav">
-							<ul>
-								<li><a href="#top" id="top-link"><span class="icon solid fa-home">Intro</span></a></li>
-								<li><a href="#about" id="about-link"><span class="icon solid fa-user">About Me</span></a></li>
-								<li><a href="#portfolio" id="portfolio-link"><span class="icon solid fa-th">Portfolio</span></a></li>
-							</ul>
-						</nav>
-				</div>
-				<div class="bottom">
-					<!-- Social Icons -->
-						<ul class="icons">
-							<li><a href="https://www.linkedin.com/in/euan-baldwin-643416231/" class="icon brands fa-linkedin"><span class="label">Linkedin</span></a></li>
-							<li><a href="https://github.com/EuanBaldwin" class="icon brands fa-github"><span class="label">Github</span></a></li>
-							<li><a href="mailto:euanebaldwin@gmail.com" class="icon solid fa-envelope"><span class="label">Email</span></a></li>
-						</ul>
-				</div>
-			</div>
+  <!-- Link to your main CSS -->
+  <link rel="stylesheet" href="assets/css/main.css" />
+
+  <!-- Include Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+</head>
+<body class="is-preload">
+
+  <!-- Sidebar will be loaded here -->
+  <div id="header"></div>
+
+  <!-- Rest of your content -->
+
+  <h1>Robotic Systems for Sustainable Development</h1>
+  <div style="padding:56.11% 0 0 0;position:relative;">
+    <iframe src="https://player.vimeo.com/video/1021690022?badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479"
+      frameborder="0"
+      allow="autoplay; fullscreen; picture-in-picture; clipboard-write"
+      style="position:absolute;top:0;left:0;width:100%;height:100%;"
+      title="robotic_systems_sdgs_10818421">
+    </iframe>
+  </div>
+
+  <!-- Load jQuery and other necessary scripts -->
+  <script src="assets/js/jquery.min.js"></script>
+  <script src="assets/js/jquery.scrolly.min.js"></script>
+  <script src="assets/js/main.js"></script>
+
+  <script>
+    // Load the sidebar dynamically
+    fetch('sidebar.html')
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById('header').innerHTML = data;
+
+        // Re-initialize smooth scrolling after the sidebar has been loaded
+        $(function() {
+          $('.scrolly').scrolly();
+        });
+      });
+  </script>
+
+</body>
+</html>
