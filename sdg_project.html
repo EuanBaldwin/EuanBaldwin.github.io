@@ -6,6 +6,21 @@
   <title>SDG Project</title>
   <link rel="stylesheet" href="assets/css/main.css" />
 </head>
+
+
+<div id="header"></div> <!-- This is where the sidebar will be loaded -->
+
+<script>
+  // JavaScript to fetch and load sidebar.html
+  fetch('sidebar.html')
+    .then(response => response.text())
+    .then(data => {
+      document.getElementById('header').innerHTML = data;
+    });
+</script>
+
+
+  
 <body class="is-preload">
 
   
