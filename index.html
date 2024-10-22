@@ -16,16 +16,7 @@
     <body class="is-preload">
 
         <!-- Sidebar -->
-        <div id="header">
-            <div class="top">
-                <!-- Logo -->
-                <div id="logo">
-                    <span class="image avatar48">
-                        <img src="images/profile.jpeg" alt="Euan Baldwin" />
-                    </span>
-                    <h1 id="title">Euan Baldwin</h1>
-                    <p>MSc in Robotics</p>
-                </div>
+        <div id="sidebar"></div>
 
                 <!-- Nav -->
                 <nav id="nav">
@@ -252,5 +243,14 @@
         <script src="assets/js/util.js"></script>
         <script src="assets/js/main.js"></script>
 
+        <!-- JavaScript to load sidebar -->
+        <script>
+            // Load the sidebar content from sidebar.html into the sidebar div
+            fetch('sidebar.html')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('sidebar').innerHTML = data;
+                });
+        </script>
     </body>
 </html>
