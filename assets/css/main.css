@@ -2654,7 +2654,7 @@ input, select, textarea {
 .progress-bar {
     background-color: #ddd;
     border-radius: 10px;
-    height: 20px;
+    height: 10px;
     width: 100%;
     position: relative;
 }
