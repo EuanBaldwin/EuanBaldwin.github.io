@@ -2654,13 +2654,13 @@ input, select, textarea {
 .progress-bar {
     background-color: #ddd;
     border-radius: 10px;
-    height: 10px;
+    height: 5px;
     width: 100%;
     position: relative;
 }
 
 .progress {
     background-color: #8ebebc;
-    height: 50%;
+    height: 100%;
     border-radius: 10px;
 }
