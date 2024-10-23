@@ -2664,3 +2664,63 @@ input, select, textarea {
     height: 100%;
     border-radius: 10px;
 }
+
+
+
+/* Style for the CV section */
+.cv-section {
+    width: 100%;
+    padding: 50px 0;
+    background-color: #f5fafa;
+}
+
+.cv-header {
+    text-align: left;
+    font-size: 2.5em;
+    color: #666;
+    margin-bottom: 20px;
+    font-weight: 300;
+}
+
+.cv-subheader {
+    text-align: left;
+    font-size: 1.5em;
+    color: #8ebebc;
+    margin-bottom: 15px;
+}
+
+.cv-item {
+    padding: 10px 0;
+}
+
+.cv-content {
+    margin-bottom: 25px;
+}
+
+.cv-date {
+    font-size: 0.9em;
+    color: #aaa;
+}
+
+.cv-title {
+    font-weight: 600;
+    color: #333;
+}
+
+.cv-location {
+    font-size: 0.9em;
+    color: #888;
+}
+
+.cv-description {
+    font-size: 1em;
+    color: #555;
+    margin: 5px 0 15px;
+}
+
+@media screen and (max-width: 960px) {
+    .cv-header, .cv-subheader {
+        text-align: center;
+    }
+}
+
