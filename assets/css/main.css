@@ -2667,60 +2667,90 @@ input, select, textarea {
 
 
 
-/* Style for the CV section */
+/* CV Timeline Section */
 .cv-section {
     width: 100%;
-    padding: 50px 0;
+    padding: 60px 0;
     background-color: #f5fafa;
 }
 
 .cv-header {
-    text-align: left;
     font-size: 2.5em;
-    color: #666;
-    margin-bottom: 20px;
+    color: #333;
+    text-align: center;
+    margin-bottom: 40px;
     font-weight: 300;
 }
 
-.cv-subheader {
-    text-align: left;
-    font-size: 1.5em;
-    color: #8ebebc;
-    margin-bottom: 15px;
+.cv-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 80%;
+    margin: 0 auto;
+    position: relative;
+    padding-left: 20px;
+}
+
+.cv-column {
+    width: 48%;
+    padding: 0 20px;
 }
 
 .cv-item {
-    padding: 10px 0;
+    position: relative;
+    padding: 20px 0 20px 30px;
+    border-left: 2px solid #8ebebc;
 }
 
-.cv-content {
-    margin-bottom: 25px;
-}
-
-.cv-date {
-    font-size: 0.9em;
-    color: #aaa;
+.cv-item:before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 20px;
+    width: 15px;
+    height: 15px;
+    border: 2px solid #8ebebc;
+    border-radius: 50%;
+    background-color: #fff;
 }
 
 .cv-title {
+    font-size: 1.4em;
     font-weight: 600;
     color: #333;
 }
 
 .cv-location {
-    font-size: 0.9em;
+    font-size: 1em;
     color: #888;
+    margin-bottom: 5px;
+}
+
+.cv-date {
+    font-size: 1em;
+    color: #aaa;
+    margin-bottom: 15px;
 }
 
 .cv-description {
     font-size: 1em;
     color: #555;
-    margin: 5px 0 15px;
+    line-height: 1.6em;
 }
 
 @media screen and (max-width: 960px) {
-    .cv-header, .cv-subheader {
-        text-align: center;
+    .cv-content {
+        flex-direction: column;
+        width: 95%;
+    }
+    .cv-column {
+        width: 100%;
+    }
+    .cv-item {
+        padding-left: 50px;
+    }
+    .cv-item:before {
+        left: 10px;
     }
 }
-
