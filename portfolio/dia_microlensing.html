@@ -9,8 +9,34 @@
 
 <body class="is-preload">
 
-  <!-- Sidebar -->
-  <div id="sidebar"></div>
+<!-- Sidebar -->
+  <div id="header">
+    <div class="top">
+      <!-- Logo -->
+      <div id="logo">
+        <span class="image avatar48"><img src="../images/profile.jpeg" alt="Profile picture" /></span>
+        <h1 id="title">Euan Baldwin</h1>
+        <p>MSc in Robotics</p>
+      </div>
+      <!-- Nav -->
+      <nav id="nav">
+        <ul>
+          <li><a href="../index.html#top" id="top-link"><span class="icon solid fa-home">Intro</span></a></li>
+          <li><a href="../index.html#about" id="about-link"><span class="icon solid fa-user">About Me</span></a></li>
+          <li><a href="../index.html#skills" id="skills-link"><span class="icon solid fa-award">Skills</span></a></li>
+          <li><a href="../index.html#portfolio" id="portfolio-link"><span class="icon solid fa-th">Portfolio</span></a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="bottom">
+      <!-- Social Icons -->
+      <ul class="icons">
+        <li><a href="https://www.linkedin.com/in/euan-baldwin-643416231/" class="icon brands fa-linkedin"><span class="label">Linkedin</span></a></li>
+        <li><a href="https://github.com/EuanBaldwin" class="icon brands fa-github"><span class="label">Github</span></a></li>
+        <li><a href="mailto:euanebaldwin@gmail.com" class="icon solid fa-envelope"><span class="label">Email</span></a></li>
+      </ul>
+    </div>
+  </div>
 
   <!-- Main -->
   <div id="main">
@@ -30,16 +56,6 @@
       </div>
     </section>
   </div>
-
-  <!-- JavaScript to load sidebar -->
-  <script>
-      // Load the sidebar content from sidebar.html into the sidebar div
-      fetch('../sidebar.html')
-          .then(response => response.text())
-          .then(data => {
-              document.getElementById('sidebar').innerHTML = data;
-          });
-  </script>
 
 </body>
 </html>
