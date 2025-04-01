@@ -2120,7 +2120,7 @@ input, select, textarea {
 
 		#logo .image {
 			display: block; 
-    			margin-bottom: 1em; /* add some spacing so text sits below */
+    			margin-bottom: 0.5em; /* add some spacing so text sits below */
 		}
 
 	#nav ul {
