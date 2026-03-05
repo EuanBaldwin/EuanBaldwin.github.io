@@ -152,6 +152,61 @@
 	// Scrolly.
 		$('.scrolly').scrolly();
 
+	// Portfolio layout:
+	// - Desktop: stack cards inside 3 columns (no row-height whitespace gaps).
+	// - Mobile: keep row-major source order (one card per row).
+		var $portfolioRow = $('#portfolio .row').first();
+		var portfolioCards = [];
+
+		if ($portfolioRow.length > 0) {
+
+			$portfolioRow.children('.col-4.col-12-mobile').each(function() {
+				var $card = $(this).children('article.item').first();
+				if ($card.length > 0)
+					portfolioCards.push($card.get(0));
+			});
+
+			function applyPortfolioLayout() {
+
+				if (portfolioCards.length === 0)
+					return;
+
+				$portfolioRow.empty();
+
+				if (window.matchMedia('(max-width: 736px)').matches) {
+
+					portfolioCards.forEach(function(card) {
+						$('<div class="col-4 col-12-mobile"></div>')
+							.append(card)
+							.appendTo($portfolioRow);
+					});
+
+					return;
+				}
+
+				var desktopColumns = [];
+
+				for (var i = 0; i < 3; i++) {
+					desktopColumns[i] = $('<div class="col-4 col-12-mobile"></div>').appendTo($portfolioRow);
+				}
+
+				portfolioCards.forEach(function(card, index) {
+					desktopColumns[index % 3].append(card);
+				});
+
+			}
+
+			var portfolioResizeTimer = null;
+
+			$window.on('resize', function() {
+				window.clearTimeout(portfolioResizeTimer);
+				portfolioResizeTimer = window.setTimeout(applyPortfolioLayout, 120);
+			});
+
+			applyPortfolioLayout();
+
+		}
+
 	// Make entire portfolio cards clickable.
 		var $portfolioItems = $('#portfolio .item');
 
