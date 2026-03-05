@@ -40,6 +40,8 @@ This repository contains my personal website and portfolio, built from the HTML5
     `https://github.com/EuanBaldwin/computational-physics/blob/main/project3_10818421.ipynb`
 14. Gender Inequality in Physics Report  
     `/portfolio/epq.html`
+15. EA Manchester  
+    `https://www.eamanchester.org`
 
 ## External Links
 
