@@ -2,16 +2,6 @@
 
 This repository contains my personal website and portfolio, built from the HTML5 UP Prologue template and customized with shared components, responsive portfolio behavior, and project-specific pages.
 
-## Local Preview
-
-Run from the repository root:
-
-```bash
-python3 -m http.server 8000
-```
-
-Then open `http://localhost:8000`.
-
 ## Site Structure
 
 - Home page: `/`
@@ -50,13 +40,6 @@ Then open `http://localhost:8000`.
     `https://github.com/EuanBaldwin/computational-physics/blob/main/project3_10818421.ipynb`
 14. Gender Inequality in Physics Report  
     `/portfolio/epq.html`
-
-## Shared Components and Behavior
-
-- Shared portfolio sidebar/footer are injected via `assets/js/portfolio-header.js`.
-- Portfolio cards are fully clickable on the home page.
-- Mobile portfolio order is row-major; desktop is grouped into three stacked columns.
-- Sidebar active state is synchronized so `Intro` is active at the top and section highlighting updates while scrolling.
 
 ## External Links
 
