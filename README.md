@@ -1,64 +1,66 @@
-# Continuous Professional Development Portfolio
+# Personal Website Portfolio
 
-This repository hosts my personal website, which highlights my profile, projects, and skills. Below is the sitemap detailing the structure of the website.
+This repository contains my personal website and portfolio, built from the HTML5 UP Prologue template and customized with shared components, responsive portfolio behavior, and project-specific pages.
 
-## Sitemap
+## Local Preview
 
-### Home Page
-The main landing page of the website is accessible at `/`.
+Run from the repository root:
 
-### Sections within the Home Page
-- **Intro Section:** `/#top`  
-  Introduces the website and its purpose.  
-- **About Me Section:** `/#about`  
-  Provides details about my background and interests.  
-- **Skills Section:** `/#skills`  
-  Showcases the technical and professional skills I have developed.  
-- **Portfolio Section:** `/#portfolio`  
-  Links to detailed descriptions of my projects.  
+```bash
+python3 -m http.server 8000
+```
 
-### Portfolio Items
-The portfolio includes the following projects:
+Then open `http://localhost:8000`.
 
-1. **SDG Project**  
-   URL: `/portfolio/sdg_project.html`  
-   Explores robotics and sustainable development goals.
+## Site Structure
 
-2. **Particle Catalogue in C++**  
-   URL: [GitHub Report](https://github.com/EuanBaldwin/cpp-course/blob/main/project-particle-catalogue-EuanBaldwin/report.pdf)  
-   A project on managing particles using C++.
+- Home page: `/`
+- Intro section: `/#top`
+- About section: `/#about`
+- Skills section: `/#skills`
+- Portfolio section: `/#portfolio`
 
-3. **The Impact of Deprivation on the Perception of COVID-19 in London**  
-   URL: `/portfolio/nea.html`  
-   Explores the correlation between COVID-19 mortality and deprivation.
+## Portfolio Entries
 
-4. **Measuring Matter-Antimatter Asymmetries at the LHC**  
-   URL: `/portfolio/lhcb.html`  
-   Research into matter-antimatter asymmetries.
+1. Verification and Validation of an Autonomous Warehouse Inspection Robot  
+   `/portfolio/msc_dissertation.html`
+2. Robotic Object Classification: Deep Learning vs. Local Features  
+   `/portfolio/cognitive_robotics_cv.html`
+3. Neural Networks: Zero to Hero  
+   `https://github.com/EuanBaldwin/nn-zero-to-hero`
+4. Robotic Systems & Sustainable Development  
+   `/portfolio/sdg_project.html`
+5. Measuring Matter Antimatter Asymmetries at the LHC  
+   `/portfolio/lhcb.html`
+6. BlueDot Technical AI Safety Course  
+   `/portfolio/technical_ai_safety.html`
+7. Particle Catalogue in CPP  
+   `https://github.com/EuanBaldwin/cpp-course/blob/main/project-particle-catalogue-EuanBaldwin/report.pdf`
+8. A* Path Planner  
+   `https://github.com/EuanBaldwin/AMR_assignment_2`
+9. Autonomous Search and Retrieval Robot  
+   `https://github.com/MahirPokar/Autonomous-search-and-retrieval-robot-project`
+10. The Impact of Deprivation on the Perception of COVID-19 in London  
+    `/portfolio/nea.html`
+11. Sensor Characterisation: A2M12 Lidar  
+    `/portfolio/sensor_characterisation.html`
+12. DIA & Gravitational Microlensing  
+    `/portfolio/dia_microlensing.html`
+13. Neutron Scattering Simulation  
+    `https://github.com/EuanBaldwin/computational-physics/blob/main/project3_10818421.ipynb`
+14. Gender Inequality in Physics Report  
+    `/portfolio/epq.html`
 
-5. **Neutron Scattering Simulation**  
-   URL: [GitHub Notebook](https://github.com/EuanBaldwin/computational-physics/blob/main/project3_10818421.ipynb)  
-   Simulates neutron scattering behaviour.
+## Shared Components and Behavior
 
-6. **Autonomous Search and Retrieval Robot**  
-   URL: [GitHub Project](https://github.com/MahirPokar/Autonomous-search-and-retrieval-robot-project)  
-   Development of an autonomous robot for search and retrieval.
+- Shared portfolio sidebar/footer are injected via `assets/js/portfolio-header.js`.
+- Portfolio cards are fully clickable on the home page.
+- Mobile portfolio order is row-major; desktop is grouped into three stacked columns.
+- Sidebar active state is synchronized so `Intro` is active at the top and section highlighting updates while scrolling.
 
-7. **DIA & Gravitational Microlensing**  
-   URL: `/portfolio/dia_microlensing.html`  
-   Combines gravitational microlensing with digital image analysis.
+## External Links
 
-8. **Gender Inequality in Physics Report**  
-   URL: `/portfolio/epq.html`  
-   A report advocating for gender equality in physics.
-
-### External Links
-The website also provides access to:
-
-- **Curriculum Vitae (CV):** `/CV%20-%2023.10.24.pdf`  
-- **LinkedIn Profile:** [Euan Baldwin on LinkedIn](https://www.linkedin.com/in/euan-baldwin-643416231/)  
-- **GitHub Profile:** [Euan Baldwin on GitHub](https://github.com/EuanBaldwin)  
-- **Email:** [euanebaldwin@gmail.com](mailto:euanebaldwin@gmail.com)
-
-### Footer Information
-The footer credits the design of the website to [HTML5 UP](http://html5up.net).
+- CV: `/CV%20-%2005.02.26.pdf`
+- LinkedIn: `https://www.linkedin.com/in/euan-baldwin-643416231/`
+- GitHub: `https://github.com/EuanBaldwin`
+- Email: `mailto:euanebaldwin@gmail.com`

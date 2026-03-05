@@ -145,9 +145,13 @@
 
 		}
 
-		$window.on('scroll', syncTopNavState);
-		$window.on('load', syncTopNavState);
-		syncTopNavState();
+			$window.on('scroll', syncTopNavState);
+			$window.on('load', function() {
+				syncTopNavState();
+				window.setTimeout(syncTopNavState, 120);
+			});
+			syncTopNavState();
+			window.setTimeout(syncTopNavState, 120);
 
 	// Scrolly.
 		$('.scrolly').scrolly();
