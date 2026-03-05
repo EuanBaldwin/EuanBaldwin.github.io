@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">BlueDot Technical AI Safety Certificate</title>
+  <desc id="desc">Stylized certificate placeholder for Technical AI Safety certification.</desc>
+  <rect width="1200" height="800" fill="#f4f6fb"/>
+  <rect x="60" y="60" width="1080" height="680" rx="24" fill="#ffffff" stroke="#d9deea" stroke-width="4"/>
+  <circle cx="600" cy="220" r="120" fill="#ffffff" stroke="#53147d" stroke-width="10"/>
+  <rect x="390" y="180" width="420" height="100" rx="8" fill="#7d2ea8"/>
+  <text x="600" y="242" font-family="Arial, sans-serif" font-size="54" fill="#ffffff" text-anchor="middle" font-weight="700">TECHNICAL AI SAFETY</text>
+  <text x="600" y="360" font-family="Arial, sans-serif" font-size="34" fill="#5f6f91" text-anchor="middle" letter-spacing="2">PROFESSIONAL CERTIFICATION</text>
+  <text x="600" y="430" font-family="Arial, sans-serif" font-size="82" fill="#12163f" text-anchor="middle" font-weight="700">Technical AI Safety</text>
+  <text x="600" y="500" font-family="Arial, sans-serif" font-size="42" fill="#5f6f91" text-anchor="middle">Awarded to Euan Baldwin</text>
+  <text x="600" y="610" font-family="Arial, sans-serif" font-size="34" fill="#12163f" text-anchor="middle">BlueDot Impact</text>
+  <text x="600" y="666" font-family="Arial, sans-serif" font-size="28" fill="#5f6f91" text-anchor="middle">Issued February 22, 2026</text>
+</svg>

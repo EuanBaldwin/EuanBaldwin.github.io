@@ -28,6 +28,28 @@
 
 	// Nav.
 		var $nav_a = $nav.find('a');
+		var $top_link = $nav_a.filter('#top-link');
+		var navSections = [];
+
+		$nav_a.each(function() {
+
+			var $link = $(this);
+			var href = $link.attr('href');
+
+			if (!href || href.charAt(0) !== '#')
+				return;
+
+			var $section = $(href);
+
+			if ($section.length < 1)
+				return;
+
+			navSections.push({
+				$link: $link,
+				$section: $section
+			});
+
+		});
 
 		$nav_a
 			.addClass('scrolly')
@@ -72,13 +94,13 @@
 								$section.addClass('inactive');
 
 						},
-						enter: function() {
+							enter: function() {
 
-							// Activate section.
-								$section.removeClass('inactive');
+								// Activate section.
+									$section.removeClass('inactive');
 
-							// No locked links? Deactivate all links and activate this section's one.
-								if ($nav_a.filter('.active-locked').length == 0) {
+								// No locked links? Deactivate all links and activate this section's one.
+									if ($nav_a.filter('.active-locked').length == 0) {
 
 									$nav_a.removeClass('active');
 									$this.addClass('active');
@@ -94,8 +116,73 @@
 
 			});
 
+		// Keep Intro active when scrolled to the very top.
+		function syncTopNavState() {
+
+			if ($nav_a.filter('.active-locked').length !== 0)
+				return;
+
+			var scrollTop = $window.scrollTop();
+
+			if (scrollTop <= 80) {
+				$nav_a.removeClass('active');
+				$top_link.addClass('active');
+				return;
+			}
+
+			var probeY = scrollTop + ($window.height() * 0.35);
+			var $activeLink = $top_link;
+
+			for (var i = 0; i < navSections.length; i++) {
+
+				if (navSections[i].$section.offset().top <= probeY)
+					$activeLink = navSections[i].$link;
+
+			}
+
+			$nav_a.removeClass('active');
+			$activeLink.addClass('active');
+
+		}
+
+		$window.on('scroll', syncTopNavState);
+		$window.on('load', syncTopNavState);
+		syncTopNavState();
+
 	// Scrolly.
 		$('.scrolly').scrolly();
+
+	// Make entire portfolio cards clickable.
+		var $portfolioItems = $('#portfolio .item');
+
+		$portfolioItems.each(function() {
+
+			var $item = $(this);
+			var $primaryLink = $item.find('> a.image.fit').first();
+
+			if ($primaryLink.length === 0)
+				$primaryLink = $item.find('a').first();
+
+			if ($primaryLink.length > 0)
+				$item.attr('data-href', $primaryLink.attr('href'));
+
+		});
+
+		$portfolioItems.on('click', function(e) {
+
+			var $target = $(e.target);
+			var href = $(this).attr('data-href');
+
+			if (!href)
+				return;
+
+			// Preserve default behavior for direct clicks on interactive elements.
+			if ($target.closest('a, button, input, textarea, select, label').length > 0)
+				return;
+
+			window.location.href = href;
+
+		});
 
 	// Header (narrower + mobile).
 

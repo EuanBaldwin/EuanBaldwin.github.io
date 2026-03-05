@@ -31,7 +31,19 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://EuanBaldwin.github.io/portfolio/msc_dissertation.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://EuanBaldwin.github.io/portfolio/cognitive_robotics_cv.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://github.com/EuanBaldwin/cpp-course/blob/main/project-particle-catalogue-EuanBaldwin/report.pdf</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://github.com/EuanBaldwin/nn-zero-to-hero</loc>
     <priority>0.6</priority>
   </url>
   <url>
@@ -56,6 +68,10 @@
   </url>
   <url>
     <loc>https://EuanBaldwin.github.io/portfolio/epq.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://EuanBaldwin.github.io/portfolio/technical_ai_safety.html</loc>
     <priority>0.7</priority>
   </url>
 
