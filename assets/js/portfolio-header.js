@@ -26,7 +26,7 @@
       '  </div>',
       '  <div class="bottom">',
       '    <ul class="icons">',
-      '      <li><a href="../CV - 08.06.26.pdf" class="icon solid fa-file"><span class="label">Curriculum Vitae</span></a></li>',
+      '      <li><a href="../CV - 08.06.26.pdf" class="icon-cv" aria-label="Curriculum Vitae" title="Curriculum Vitae"><span>CV</span></a></li>',
       '      <li><a href="https://www.linkedin.com/in/euan-baldwin-643416231/" class="icon brands fa-linkedin"><span class="label">LinkedIn</span></a></li>',
       '      <li><a href="https://github.com/EuanBaldwin" class="icon brands fa-github"><span class="label">GitHub</span></a></li>',
       '      <li><a href="mailto:euanebaldwin@gmail.com" class="icon solid fa-envelope"><span class="label">Email</span></a></li>',

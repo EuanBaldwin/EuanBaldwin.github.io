@@ -2031,6 +2031,23 @@ input, select, textarea {
 			font-family: 'Font Awesome 5 Brands';
 		}
 
+		/* CV text icon */
+		.icon-cv {
+			display: -webkit-flex;
+			display: flex;
+			-webkit-align-items: center;
+			align-items: center;
+			-webkit-justify-content: center;
+			justify-content: center;
+		}
+
+			.icon-cv > span {
+				font-weight: 900;
+				font-size: 0.85em;
+				line-height: 1;
+				letter-spacing: 0.03em;
+			}
+
 /* Header */
 
 	#header {
