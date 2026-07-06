@@ -10,6 +10,21 @@
 
   <!-- Portfolio Items -->
   <url>
+    <loc>https://EuanBaldwin.github.io/portfolio/cea_events.html</loc>
+    <lastmod>2026-07-06</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://EuanBaldwin.github.io/portfolio/ea_manchester.html</loc>
+    <lastmod>2026-07-06</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://EuanBaldwin.github.io/portfolio/corrie_hotel.html</loc>
+    <lastmod>2026-07-06</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://EuanBaldwin.github.io/portfolio/sdg_project.html</loc>
     <lastmod>2026-06-28</lastmod>
     <priority>0.7</priority>

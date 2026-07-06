@@ -41,6 +41,133 @@
   cursor: pointer;
 }
 
+/* About Me cards */
+.about-cards {
+  display: flex;
+  gap: 1.5em;
+  margin-bottom: 2em;
+  align-items: stretch;
+}
+
+.about-card {
+  flex: 1;
+  background: #fff;
+  border-top: 3px solid #8ebebc;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 1.5em 1.5em 0.5em;
+  text-align: left;
+}
+
+.about-card h3 {
+  font-size: 0.85em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #5f8f8d;
+  margin-bottom: 0.75em;
+}
+
+.about-card p {
+  font-size: 0.85em;
+  line-height: 1.6;
+  margin-bottom: 1em;
+}
+
+@media screen and (max-width: 980px) {
+  .about-cards {
+    flex-direction: column;
+  }
+}
+
+/* Portfolio detail pages */
+.page-meta {
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 0.8em;
+  font-weight: 700;
+  color: #5f8f8d;
+  margin: -1.5em 0 2em;
+}
+
+.highlights {
+  display: flex;
+  gap: 1.5em;
+  margin-bottom: 2em;
+  align-items: stretch;
+}
+
+.highlight {
+  flex: 1;
+  background: #fff;
+  border-top: 3px solid #8ebebc;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 1.25em 1em 1em;
+}
+
+.highlight .num {
+  display: block;
+  font-size: 1.6em;
+  font-weight: 700;
+  color: #41484c;
+  margin-bottom: 0.2em;
+}
+
+.highlight .label {
+  display: block;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #5f8f8d;
+}
+
+.role-block {
+  text-align: left;
+  background: #fff;
+  border-left: 3px solid #8ebebc;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 1.25em 1.5em;
+  margin-bottom: 1.5em;
+}
+
+.role-block h3 {
+  font-size: 1em;
+  font-weight: 700;
+  margin-bottom: 0.6em;
+}
+
+.role-block .dates {
+  font-weight: 400;
+  font-size: 0.85em;
+  color: #999;
+  margin-left: 0.4em;
+}
+
+.role-block ul {
+  margin: 0 0 0.5em;
+  padding-left: 1.2em;
+}
+
+.role-block li {
+  font-size: 0.9em;
+  line-height: 1.65;
+  margin-bottom: 0.4em;
+}
+
+.role-block p {
+  font-size: 0.9em;
+  line-height: 1.65;
+  margin-bottom: 0.5em;
+}
+
+@media screen and (max-width: 736px) {
+  .highlights {
+    flex-direction: column;
+  }
+}
+
 /* Skills */
 .skill-container {
   width: 48%;
