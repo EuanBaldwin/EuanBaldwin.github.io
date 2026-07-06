@@ -40,7 +40,7 @@
     footerContainer.innerHTML = [
       '<div id="footer">',
       '  <ul class="copyright">',
-      '    <li>&copy; Euan Baldwin 2024. All rights reserved.</li>',
+      '    <li>&copy; Euan Baldwin 2026. All rights reserved.</li>',
       '    <li>Design: <a href="https://html5up.net">HTML5 UP</a></li>',
       '  </ul>',
       '</div>'
