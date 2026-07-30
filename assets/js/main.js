@@ -189,13 +189,14 @@
 				}
 
 				var desktopColumns = [];
+				var columnCount = window.matchMedia('(min-width: 1281px)').matches ? 4 : 3;
 
-				for (var i = 0; i < 3; i++) {
+				for (var i = 0; i < columnCount; i++) {
 					desktopColumns[i] = $('<div class="col-4 col-12-mobile"></div>').appendTo($portfolioRow);
 				}
 
 				portfolioCards.forEach(function(card, index) {
-					desktopColumns[index % 3].append(card);
+					desktopColumns[index % columnCount].append(card);
 				});
 
 			}

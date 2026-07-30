@@ -268,6 +268,36 @@ body {
 }
 
 /* Portfolio cards */
+#portfolio .item header h3 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0;
+}
+
+@media screen and (min-width: 1281px) {
+  #portfolio .row > .col-4 {
+    width: 25%;
+  }
+}
+
+@media screen and (max-width: 736px) {
+  #portfolio .row > .col-12-mobile {
+    width: 50%;
+  }
+
+  #portfolio .item header {
+    font-size: 0.7em;
+  }
+}
+
+#portfolio .item .image.fit img {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  background: #fff;
+}
+
 #portfolio .item {
   border-radius: 6px;
   overflow: hidden;

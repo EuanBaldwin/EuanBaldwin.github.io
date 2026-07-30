@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 -50 1200 800" role="img" aria-labelledby="title desc">
   <title id="title">Neural Networks Zero to Hero</title>
   <desc id="desc">Thumbnail graphic for Neural Networks: Zero to Hero coursework and code repository.</desc>
   <defs>
@@ -7,7 +7,7 @@
       <stop offset="100%" stop-color="#1f4f78"/>
     </linearGradient>
   </defs>
-  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect y="-50" width="1200" height="800" fill="url(#bg)"/>
   <g fill="none" stroke="#7ec8ff" stroke-width="2" opacity="0.45">
     <circle cx="230" cy="170" r="16"/>
     <circle cx="360" cy="120" r="16"/>
