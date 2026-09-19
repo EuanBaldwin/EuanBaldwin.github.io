@@ -1,105 +1,103 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
-  <!-- Home Page -->
   <url>
-    <loc>https://EuanBaldwin.github.io/</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>1.0</priority>
   </url>
-
-  <!-- Portfolio Items -->
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/cea_events.html</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://euanbaldwin.github.io/credits.html</loc>
+    <lastmod>2026-09-19</lastmod>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://euanbaldwin.github.io/portfolio/autonomous_search_robot.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/ea_manchester.html</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/cea_events.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/corrie_hotel.html</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/cognitive_robotics_cv.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/sdg_project.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/corrie_hotel.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/msc_dissertation.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/dia_microlensing.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/cognitive_robotics_cv.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/ea_manchester.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/nea.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/epq.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/lhcb.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/lhcb.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/dia_microlensing.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/msc_dissertation.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/sensor_characterisation.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/nea.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/epq.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/neutron_scattering.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/technical_ai_safety.html</loc>
-    <lastmod>2026-06-28</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/nn_zero_to_hero.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/nn_zero_to_hero.html</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/particle_catalogue.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/autonomous_search_robot.html</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/path_planner.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/particle_catalogue.html</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/saif.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/neutron_scattering.html</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/sdg_project.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://EuanBaldwin.github.io/portfolio/path_planner.html</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://euanbaldwin.github.io/portfolio/sensor_characterisation.html</loc>
+    <lastmod>2026-09-19</lastmod>
     <priority>0.7</priority>
   </url>
-
-  <!-- CV -->
   <url>
-    <loc>https://EuanBaldwin.github.io/CV.pdf</loc>
-    <lastmod>2026-06-28</lastmod>
-    <priority>0.5</priority>
+    <loc>https://euanbaldwin.github.io/portfolio/technical_ai_safety.html</loc>
+    <lastmod>2026-09-19</lastmod>
+    <priority>0.7</priority>
   </url>
-
 </urlset>

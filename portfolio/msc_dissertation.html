@@ -1,54 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verification and Validation of an Autonomous Warehouse Inspection Robot</title>
-  <link rel="stylesheet" href="../assets/css/portfolio-page.css" />
-  <link rel="icon" type="image/x-icon" href="../favicon.ico?v=2" />
-  <link rel="icon" type="image/png" href="../favicon.png?v=2" />
-  <link rel="apple-touch-icon" href="../images/profile_nobg.png?v=2" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corroborative verification and validation of an autonomous warehouse inspection robot · Euan Baldwin</title>
+<meta name="description" content="High-fidelity simulation combined with probabilistic model checking, to test both how well a warehouse inspection robot performs and how it behaves when safety matters.">
+<link rel="canonical" href="https://euanbaldwin.github.io/portfolio/msc_dissertation.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Corroborative verification and validation of an autonomous warehouse inspection robot · Euan Baldwin">
+<meta property="og:description" content="High-fidelity simulation combined with probabilistic model checking, to test both how well a warehouse inspection robot performs and how it behaves when safety matters.">
+<meta property="og:url" content="https://euanbaldwin.github.io/portfolio/msc_dissertation.html">
+<meta name="google-site-verification" content="eHmI1qKbKS6VpO3kCU5qn62_KdIt7f9gkuJyq2swO9k">
+<link rel="icon" type="image/x-icon" href="../favicon.ico">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
 </head>
+<body>
+<header class="top">
+  <a class="home" href="../index.html">Euan Baldwin</a>
+  <nav class="utility" aria-label="Elsewhere">
+    <a class="icon gwwc" href="https://www.givingwhatwecan.org" title="Giving What We Can pledger" aria-label="Giving What We Can">
+      <svg viewBox="0 -1 221 164" width="30" height="22" aria-hidden="true"><path class="o" d="M97.493 97.4927L64.5073 130.478L94.9943 160.965C96.3738 162.345 98.6121 162.345 99.9917 160.965L130.479 130.478L97.493 97.4927Z"/><path class="o" d="M130.479 64.5071L97.4936 97.4928L130.479 130.478L163.465 97.4928L130.479 64.5071Z"/><path class="o" d="M64.5086 64.5071L31.5229 97.4928L64.5086 130.478L97.4943 97.4928L64.5086 64.5071Z"/><path class="r" d="M130.479 64.5071L97.4936 97.4928L130.479 130.478L163.465 97.4928L130.479 64.5071Z" opacity="0.35"/><path class="r" d="M64.5086 64.5071L31.5229 97.4928L64.5086 130.478L97.4943 97.4928L64.5086 64.5071Z" opacity="0.35"/><path class="r" d="M127.981 1.03516L97.4936 31.5217L130.479 64.5074L163.465 31.5217L132.978 1.03516C131.598 -0.345054 129.36 -0.345054 127.981 1.03516Z"/><path class="r" d="M62.01 1.03516L31.5229 31.5217L64.5086 64.5074L97.4943 31.5217L67.0073 1.03516C65.6278 -0.345054 63.3895 -0.345054 62.01 1.03516Z"/><path class="o" d="M163.465 31.5215L130.479 64.5072L163.465 97.4929L193.952 67.0059C195.331 65.6263 195.331 63.388 193.952 62.0085L163.465 31.5215Z"/><path class="o" d="M31.5217 31.5215L1.03516 62.0085C-0.345054 63.388 -0.345054 65.6263 1.03516 67.0059L31.5217 97.4929L64.5074 64.5072L31.5217 31.5215Z"/><path class="o" d="M97.493 31.5215L64.5073 64.5072L97.493 97.4929L130.479 64.5072L97.493 31.5215Z"/><path class="r" d="M163.465 31.5215L130.479 64.5072L163.465 97.4929L193.952 67.0059C195.331 65.6263 195.331 63.388 193.952 62.0085L163.465 31.5215Z" opacity="0.7"/><path class="r" d="M31.5217 31.5215L1.03516 62.0085C-0.345054 63.388 -0.345054 65.6263 1.03516 67.0059L31.5217 97.4929L64.5074 64.5072L31.5217 31.5215Z" opacity="0.7"/><path class="r" d="M97.4515 31.5956L64.4658 64.5813L97.4515 97.567L130.437 64.5813L97.4515 31.5956Z" opacity="0.7"/><path class="r" d="M188.897 102.215L161.122 129.99C160.202 130.91 160.202 132.401 161.122 133.321L188.897 161.096C189.817 162.016 191.308 162.016 192.228 161.096L220.004 133.321C220.924 132.401 220.924 130.91 220.004 129.99L192.228 102.215C191.308 101.295 189.817 101.295 188.897 102.215Z"/><path class="r" d="M188.897 102.215L161.122 129.99C160.202 130.91 160.202 132.401 161.122 133.321L188.897 161.096C189.817 162.016 191.308 162.016 192.228 161.096L220.004 133.321C220.924 132.401 220.924 130.91 220.004 129.99L192.228 102.215C191.308 101.295 189.817 101.295 188.897 102.215Z"/></svg>
+    </a>
+    <a class="icon linkedin" href="https://www.linkedin.com/in/euan-baldwin-643416231/" title="LinkedIn" aria-label="LinkedIn">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    </a>
+    <a class="icon github" href="https://github.com/EuanBaldwin" title="GitHub" aria-label="GitHub">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+    </a>
+    <a class="icon mail" href="mailto:euanebaldwin@gmail.com" title="Email" aria-label="Email">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6.2L21 7"/></svg>
+    </a>
+  </nav>
+</header>
 
-<body class="is-preload">
-  <!-- Sidebar -->
-  <div id="shared-portfolio-header"></div>
+<article class="project">
+  <p class="kicker mono small">Robotics &amp; AI</p>
+  <h1>Corroborative verification and validation of an autonomous warehouse inspection robot</h1>
+  <p class="meta mono small">MSc Robotics dissertation · University of Manchester · 2025</p>
+  <p class="lede">High-fidelity simulation combined with probabilistic model checking, to test both how well a warehouse inspection robot performs and how it behaves when safety matters.</p>
+  <figure class="figure"><img src="../assets/img/warehouse-robot.jpg" alt="Simulated warehouse with the inspection robot"></figure>
+  <iframe class="embed" src="10818421.pdf" title="Dissertation"></iframe>
+  <ul class="links">
+    <li><a href="10818421.pdf">Dissertation (PDF)</a></li>
+  </ul>
+</article>
 
-  <!-- Main -->
-  <div id="main">
-    <section id="about" class="three">
-      <div class="container">
-        <header>
-          <h2>Verification and Validation of an Autonomous Warehouse Inspection Robot</h2>
-        </header>
-        <div class="page-meta">MSc Dissertation &middot; First-Class</div>
-
-        <p>
-          This dissertation explores a corroborative assurance workflow for autonomous warehouse inspection robots. The focus is on combining high-fidelity simulation with formal probabilistic verification to evaluate both functional performance and safety-critical behaviour.
-        </p>
-
-        <div class="role-block">
-          <h3>What I did</h3>
-          <ul>
-            <li>Combined high-fidelity simulation with formal probabilistic model checking to evaluate functional performance and safety-critical behaviour.</li>
-            <li>Integrated simulation-driven testing with model checking to cross-validate findings between the two approaches.</li>
-            <li>Identified failure modes that are difficult to expose with only one verification approach.</li>
-          </ul>
-        </div>
-
-        <p>
-          The dissertation received a first-class mark, and the full document is included below.
-        </p>
-
-        <iframe src="10818421.pdf" class="pdf-frame">
-          This browser does not support PDFs. Please download the PDF to view it:
-          <a href="10818421.pdf">Download PDF</a>.
-        </iframe>
-      </div>
-    </section>
-  </div>
-
-  <div id="shared-portfolio-footer"></div>
-  <script src="../assets/js/portfolio-header.js?v=2"></script>
+<footer class="foot mono small">
+  <span>Euan Baldwin</span>
+  <span><a href="../credits.html">Image credits</a></span>
+  <span>2026</span>
+</footer>
 </body>
 </html>
