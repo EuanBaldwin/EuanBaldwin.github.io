@@ -16,16 +16,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=2">
 </head>
 <body>
 <div class="hero">
 <header class="top">
   <p class="blurb">
     I’m Euan Baldwin. I work on making the development of advanced AI go well, as a project manager at
-    <a href="portfolio/saif.html">SAIF</a> and on events at <a href="portfolio/cea_events.html">CEA</a>.
+    <a href="portfolio/saif.html">SAIF<sup>[1]</sup></a> and on events at <a href="portfolio/cea_events.html">CEA<sup>[2]</sup></a>.
     Before that, robotics and physics at Manchester, where I also ran
-    <a href="portfolio/ea_manchester.html">EA Manchester</a>.
+    <a href="portfolio/ea_manchester.html">EA Manchester<sup>[3]</sup></a>.
   </p>
   <nav class="utility" aria-label="Elsewhere">
     <a class="icon gwwc" href="https://www.givingwhatwecan.org" title="Giving What We Can pledger" aria-label="Giving What We Can">
@@ -38,31 +38,32 @@
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
     </a>
     <a class="icon mail" href="mailto:euanebaldwin@gmail.com" title="Email" aria-label="Email">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6.2L21 7"/></svg>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="21" height="17" rx="2.5"/><path d="M2.5 6l9.5 6.8L21.5 6"/></svg>
     </a>
   </nav>
 </header>
 <div class="art" aria-hidden="true"></div>
+<p class="drive-hint mono small">wasd to drive</p>
 <canvas id="lidar" aria-hidden="true"></canvas>
 </div>
 
-<section class="group">
+<section class="group" id="work">
   <h2 class="label mono">Work &amp; education</h2>
   <div class="cards orgs">
     <a class="card" href="portfolio/saif.html">
-      <img class="contain" style="background:#ffffff;--pad:10%" src="assets/img/saif.svg" alt="">
+      <span class="tile"><img class="contain" style="--pad:10%" src="assets/img/saif.svg" alt=""></span>
       <h3>Safe AI Forum</h3>
       <p>Project manager</p>
       <span class="when mono">Jul 2026 – present</span>
     </a>
     <a class="card" href="portfolio/cea_events.html">
-      <img class="contain" style="background:#ffffff;--pad:14%" src="assets/img/cea.png" alt="">
+      <span class="tile"><img class="contain mono-logo" style="--pad:14%" src="assets/img/cea.png" alt=""></span>
       <h3>Centre for Effective Altruism</h3>
       <p>Events team</p>
       <span class="when mono">May 2026 – present</span>
     </a>
     <a class="card" href="portfolio/ea_manchester.html">
-      <img class="contain" style="background:#ffffff;--pad:6%" src="assets/img/ea-manchester.jpg" alt="">
+      <img class="contain" style="--pad:6%" src="assets/img/ea-manchester.png" alt="">
       <h3>EA Manchester</h3>
       <p>Chair</p>
       <span class="when mono">Sep 2023 – Sep 2025</span>
@@ -88,7 +89,7 @@
   </div>
 </section>
 
-<section class="group">
+<section class="group" id="robotics">
   <h2 class="label mono">Robotics &amp; AI</h2>
   <div class="cards">
     <a class="card" href="portfolio/msc_dissertation.html">
@@ -116,7 +117,7 @@
       <span class="when mono">Coursework · MSc · 2025</span>
     </a>
     <a class="card" href="portfolio/path_planner.html">
-      <img src="assets/img/astar.jpg" alt="">
+      <picture><source srcset="assets/img/astar-dark.png" media="(prefers-color-scheme: dark)"><img src="assets/img/astar.jpg" alt=""></picture>
       <h3>A* path planner</h3>
       <p>Collision-free routes through mapped environments for a mobile robot.</p>
       <span class="when mono">Coursework · MSc · 2025</span>
@@ -142,7 +143,7 @@
   </div>
 </section>
 
-<section class="group">
+<section class="group" id="physics">
   <h2 class="label mono">Physics</h2>
   <div class="cards">
     <a class="card" href="portfolio/lhcb.html">
@@ -158,13 +159,13 @@
       <span class="when mono">BSc project · 2024</span>
     </a>
     <a class="card" href="portfolio/particle_catalogue.html">
-      <img class="contain" style="background:#ffffff;--pad:5%" src="assets/img/standard-model.jpg" alt="">
+      <span class="tile"><img class="contain invertible" style="--pad:5%" src="assets/img/standard-model.jpg" alt=""></span>
       <h3>Particle catalogue</h3>
       <p>The Standard Model as an object-oriented C++ codebase.</p>
       <span class="when mono">C++ · BSc</span>
     </a>
     <a class="card" href="portfolio/neutron_scattering.html">
-      <img src="assets/img/neutron.png" alt="">
+      <img class="invertible" src="assets/img/neutron.png" alt="">
       <h3>Neutron scattering</h3>
       <p>Monte Carlo transport of neutrons through shielding materials.</p>
       <span class="when mono">Computational physics · BSc</span>
@@ -172,7 +173,7 @@
   </div>
 </section>
 
-<section class="group">
+<section class="group" id="earlier">
   <h2 class="label mono">Earlier</h2>
   <div class="cards">
     <a class="card" href="portfolio/nea.html">
@@ -195,6 +196,6 @@
   <span><a href="credits.html">Image credits</a></span>
   <span>2026</span>
 </footer>
-<script src="assets/lidar.js"></script>
+<script src="assets/lidar.js?v=2"></script>
 </body>
 </html>
