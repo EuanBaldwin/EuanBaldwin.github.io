@@ -1,3 +1,7 @@
+/* Self-hosted type (SIL Open Font License): Inter Tight and JetBrains Mono, Latin subsets */
+@font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 500 600; font-display: swap; src: url("fonts/inter-tight.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/jetbrains-mono-400.woff2") format("woff2"); }
+
 :root {
   --bg: #ffffff;
   --fg: #111111;
