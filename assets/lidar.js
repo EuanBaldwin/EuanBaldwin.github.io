@@ -29,7 +29,9 @@
     off.width = maskW = W; off.height = maskH = H;
     const o = off.getContext('2d');
     const layers = [3, 4, 3];
-    const span = Math.min(W * 0.62, bandH * 2.2);
+    // network width: a share of the screen, but always leaving room for the rover to drive round the outside
+    const roomOutside = ROVER.r + 30 + Math.min(15, bandH * 0.05) + ROVER.r + 14;
+    const span = Math.max(120, Math.min(W * 0.62, bandH * 2.2, W - 2 * roomOutside));
     const x0 = cx - span / 2;
     const padY = Math.max(22, bandH * 0.12);
     const R = Math.max(9, Math.min(15, bandH * 0.05));
@@ -63,7 +65,9 @@
     const [Ln, Mn, Rn] = nodes;
     const mid = (a, b) => (a + b) / 2;
     const xL = Ln[0][0], xM = Mn[0][0], xR = Rn[0][0];
-    const edge = ROVER.r + 30, out = R * 5, run = R * 3.2;
+    const edge = ROVER.r + 30, run = R * 3.2;
+    // the outside corridors sit further out on wide screens, so the loop uses more of the width
+    const out = Math.max(R * 5, Math.min(W * 0.12, (W - layout.span) / 2 - edge - R * 2));
     const X = { L: Math.max(edge, xL - out), A: mid(xL, xM), B: mid(xM, xR), R: Math.min(W - edge, xR + out) };
     const doors = {
       left:  { a: 'L', b: 'A', x: xL, ys: [mid(Ln[0][1], Ln[1][1]), mid(Ln[1][1], Ln[2][1])] },
