@@ -8,17 +8,18 @@
   --muted: #8a8a8a;
   --rule: #e8e8e8;
   --accent: #0c869b;
+  --hit: #e8732a;
   --tile: #f4f4f3;
   --gutter: clamp(16px, 2.5vw, 32px);
   --measure: 36rem;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e0e0e; --fg: #ededed; --muted: #7a7a7a; --rule: #232323; --accent: #3fb0c4; --tile: #171717;
+    --bg: #0e0e0e; --fg: #ededed; --muted: #7a7a7a; --rule: #232323; --accent: #3fb0c4; --hit: #ff9550; --tile: #171717;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e0e0e; --fg: #ededed; --muted: #7a7a7a; --rule: #232323; --accent: #3fb0c4; --tile: #171717;
+  --bg: #0e0e0e; --fg: #ededed; --muted: #7a7a7a; --rule: #232323; --accent: #3fb0c4; --hit: #ff9550; --tile: #171717;
 }
 
 * { box-sizing: border-box; }
@@ -71,6 +72,11 @@ img { display: block; }
 .utility .gwwc svg path { fill: currentColor; transition: fill .25s; }
 .utility .gwwc:hover svg .o { fill: #f78c50; }
 .utility .gwwc:hover svg .r { fill: #da353b; }
+/* light/dark toggle: a moon in light mode, a sun in dark */
+.utility .theme { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; font: inherit; }
+.utility .theme:hover { color: var(--fg); }
+.utility .theme svg { fill: none; }
+.utility .theme .sun { display: none; }
 
 /* ---------- Art band ---------- */
 .art {
@@ -79,11 +85,11 @@ img { display: block; }
 }
 .art { height: clamp(220px, 34vh, 380px); }
 .hero { position: relative; display: flow-root; }   /* keeps the band's bottom margin inside, so the canvas covers it */
+/* the canvas is pinned to the viewport: the rover lives in the hero, but can be driven anywhere on the page */
 .hero canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
   pointer-events: none;
   z-index: 1;
 }
@@ -243,6 +249,22 @@ img { display: block; }
 }
 :root[data-theme="dark"] .mono-logo { filter: brightness(0) invert(1); }
 :root[data-theme="dark"] .invertible { filter: invert(1) hue-rotate(180deg); }
+
+/* Images with a dark variant: both are in the markup, and the theme picks one (the hidden one is never fetched) */
+.card img.dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .card img.light { display: none; }
+  :root:not([data-theme="light"]) .card img.dark { display: inline; }
+  :root:not([data-theme="light"]) .utility .theme .moon { display: none; }
+  :root:not([data-theme="light"]) .utility .theme .sun { display: block; }
+}
+:root[data-theme="dark"] .card img.light { display: none; }
+:root[data-theme="dark"] .card img.dark { display: inline; }
+:root[data-theme="dark"] .utility .theme .moon { display: none; }
+:root[data-theme="dark"] .utility .theme .sun { display: block; }
+
+/* a project page can carry a grid of cards (the BSc page lists the physics projects) */
+.project .cards { margin-top: .5rem; }
 
 /* A tile wrapper for images that get a dark-mode filter: the filter must not touch the tile itself */
 .card .tile { display: block; aspect-ratio: 3 / 2; background: var(--tile); border-radius: 4px; overflow: hidden; }

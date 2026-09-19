@@ -8,6 +8,9 @@
 // return and carries on. Your cursor (or a finger) is solid too: the beam
 // stops at it and casts a shadow. Each reading keeps the range error it was
 // measured with until the next sweep replaces it, and fades slowly.
+// The canvas is pinned to the viewport and everything is kept in the hero's own
+// coordinates, so the rover can also be driven off the block and around the rest
+// of the page (it never goes there by itself).
 (function () {
   const canvas = document.getElementById('lidar');
   if (!canvas) return;
@@ -19,6 +22,9 @@
   const cssVar = (n, d) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d;
 
   let W = 0, H = 0, dpr = 1, cx = 0, cy = 0, bandTop = 0, bandH = 0, nodeR = 12, span = 0;
+  let VW = 0, VH = 0;                 // viewport size
+  let ox = 0, oy = 0;                 // where the hero's origin sits in the viewport this frame
+  const page = { x0: 0, y0: 0, x1: 0, y1: 0 };   // the whole page, in hero coordinates
   let mask = null, maskW = 0, maskH = 0;
   let nodeList = [], route = [], layout = null;
   const ROVER = { len: 22, wid: 15, r: 12, speed: 42 };  // px and px/s
@@ -82,7 +88,8 @@
     const pick = arr => arr[Math.floor(rnd() * arr.length)];
 
     const pts = [];
-    const add = (x, y) => { const l = pts[pts.length - 1]; if (!l || Math.hypot(l[0] - x, l[1] - y) > 4) pts.push([x, y]); };
+    // waypoints are kept well apart: a cluster of close points makes the spline wriggle and the rover twitch
+    const add = (x, y) => { const l = pts[pts.length - 1]; if (!l || Math.hypot(l[0] - x, l[1] - y) > R * 2) pts.push([x, y]); };
     let cur = 'L', y = cy, lastDoor = null, lastLane = null;
     add(X.L, y);
 
@@ -99,8 +106,10 @@
       add(d.x - dir * r1, dy); add(d.x, dy); add(d.x + dir * r2, dy);    // square through the door
       cur = to; y = dy; lastDoor = { name, y: dy }; lastLane = null;
     };
-    const meander = () => {                                            // wander to a random spot in this corridor
-      const yy = yTop + R + rnd() * (yBot - yTop - 2 * R);
+    const meander = () => {                                            // sweep to a distant spot in this corridor
+      const lo = yTop + R, hi = yBot - R, far = (hi - lo) * 0.4;
+      let yy = lo + rnd() * (hi - lo);
+      if (Math.abs(yy - y) < far) yy = y < (lo + hi) / 2 ? Math.min(hi, y + far + rnd() * Math.max(0, hi - y - far)) : Math.max(lo, y - far - rnd() * Math.max(0, y - far - lo));
       add(jitter(X[cur], slack(cur)), yy);
       y = yy; lastDoor = null;
     };
@@ -122,7 +131,8 @@
 
     let sinceHeader = 0;
     while (pts.length < 170) {
-      const ds = doorsFrom(cur);
+      // never straight back through the layer just crossed: that is a tight about-turn
+      const ds = doorsFrom(cur).filter(([name]) => !lastDoor || lastDoor.name !== name);
       const inside = cur === 'A' || cur === 'B';
       // every handful of moves, go up and drive across the header, coming back down anywhere
       if (++sinceHeader >= 6 + Math.floor(rnd() * 3)) {
@@ -131,7 +141,7 @@
         lane(to, yTop, true); continue;
       }
       const roll = rnd();
-      if (roll < (inside ? 0.3 : 0.12)) { meander(); continue; }
+      if (roll < (inside ? 0.3 : 0.12) || (!ds.length && roll < 0.5)) { meander(); continue; }
       if (ds.length && roll < (inside ? 0.88 : 0.72)) {
         // inside, lean towards the middle door (staying in the network) over the outer ones
         const weighted = inside ? ds.flatMap(([name, d]) => name === 'midl' ? [[name, d], [name, d]] : [[name, d]]) : ds;
@@ -148,23 +158,33 @@
     route = pts.map(([x, yy]) => [Math.min(W - edge, Math.max(edge, x)), Math.min(H - edge, Math.max(edge, yy))]);
   }
 
+  // where the hero sits in the viewport, and how far the page extends around it
+  function syncFrame() {
+    const r = hero.getBoundingClientRect(), de = document.documentElement;
+    ox = r.left; oy = r.top;
+    const ax = r.left + window.scrollX, ay = r.top + window.scrollY;
+    page.x0 = -ax; page.y0 = -ay; page.x1 = de.clientWidth - ax; page.y1 = de.scrollHeight - ay;
+    cursor.x = cursor.cx - ox; cursor.y = cursor.cy - oy;
+  }
+  const inPage = (x, y) => x >= page.x0 && y >= page.y0 && x < page.x1 && y < page.y1;
+
   const idx = (x, y) => ((y | 0) * maskW + (x | 0)) * 4;
   const inBounds = (x, y) => x >= 0 && y >= 0 && x < maskW && y < maskH;
   const solid = (x, y) => inBounds(x, y) && mask[idx(x, y) + 3] > 60 && mask[idx(x, y)] > 128;
   const wire = (x, y) => inBounds(x, y) && mask[idx(x, y) + 3] > 60 && mask[idx(x, y)] <= 128;
 
   // ---- the cursor: an arrow-pointer shape the beam cannot pass ----
-  const CUR = 40;
+  const CUR = 22;   // the standard arrow pointer is about 12 x 19 px
   const curMask = document.createElement('canvas');
   curMask.width = curMask.height = CUR;
   {
-    const c = curMask.getContext('2d'), k = 1.9;
+    const c = curMask.getContext('2d'), k = 1;
     c.fillStyle = '#000'; c.beginPath();
     [[0, 0], [0, 16.5], [4.2, 12.8], [7.2, 19], [9.6, 18], [6.7, 11.9], [12, 11.9]].forEach(([x, y], i) => i ? c.lineTo(x * k, y * k) : c.moveTo(x * k, y * k));
     c.closePath(); c.fill();
   }
   const curData = curMask.getContext('2d').getImageData(0, 0, CUR, CUR).data;
-  const cursor = { x: 0, y: 0, on: false };
+  const cursor = { x: 0, y: 0, cx: 0, cy: 0, on: false };   // cx, cy in viewport coordinates; x, y in hero coordinates
   const inCursor = (x, y) => {
     const u = x - cursor.x, v = y - cursor.y;
     return u >= 0 && v >= 0 && u < CUR && v < CUR && curData[((v | 0) * CUR + (u | 0)) * 4 + 3] > 60;
@@ -172,6 +192,7 @@
 
   // ---- the rover ----
   const rover = { x: 0, y: 0, vx: 0, vy: 0, heading: 0, u: 0, manual: false, lastInput: -1e9 };
+  if (showRoute) window.lidarRover = rover;   // debug hook
   const keys = new Set();
   let armed = false;   // arrow keys only steer after a click on the block, so they do not stop the page scrolling
   // the route is followed as a smooth closed spline; u counts route segments
@@ -194,8 +215,8 @@
       const dx = rover.x - nx, dy = rover.y - ny, d = Math.hypot(dx, dy) || 1e-6, keep = nodeR + ROVER.r + 2;
       if (d < keep) { rover.x = nx + dx / d * keep; rover.y = ny + dy / d * keep; }
     }
-    rover.x = Math.min(W - ROVER.r, Math.max(ROVER.r, rover.x));
-    rover.y = Math.min(H - ROVER.r, Math.max(ROVER.r, rover.y));
+    rover.x = Math.min(page.x1 - ROVER.r, Math.max(page.x0 + ROVER.r, rover.x));
+    rover.y = Math.min(page.y1 - ROVER.r, Math.max(page.y0 + ROVER.r, rover.y));
   }
 
   function driveRover(dt, now) {
@@ -212,6 +233,12 @@
       rover.vy += (Math.sin(rover.heading) * sp - rover.vy) * k;
       rover.x += rover.vx * dt; rover.y += rover.vy * dt;
       keepOutOfNodes();
+      // keep a hand-driven rover in view: scroll the page along with it
+      if (fwd || turn) {
+        const vy = rover.y + oy, m = 90;
+        const dyScroll = vy < m ? vy - m : vy > VH - m ? vy - (VH - m) : 0;
+        if (dyScroll) window.scrollBy(0, dyScroll);
+      }
       return;
     }
     // advance the waypoint along the curve at roughly constant speed
@@ -220,11 +247,12 @@
     rover.u += ROVER.speed * dt / Math.max(dlen, 1);
     if (rover.u >= route.length) rover.u -= route.length;
     if (rover.u < 0) rover.u += route.length;
-    const [tx, ty] = pathPoint(rover.u + 0.6);
-    // steer towards a point a little way ahead on the route; the pull grows if it falls behind
+    // steer towards a point about 30 px ahead along the route; the pull grows if it falls behind
+    const ahead = u0 => { let u = u0; for (let i = 0; i < 30; i++) { const [x, y] = pathPoint(u); if (Math.hypot(x - rover.x, y - rover.y) >= 30) break; u += 0.1; } return pathPoint(u); };
+    let [tx, ty] = ahead(rover.u);
     let ax = tx - rover.x, ay = ty - rover.y;
     let l = Math.hypot(ax, ay) || 1;
-    if (l > 90) { rover.u = nearestU(rover.x, rover.y); const [nx, ny] = pathPoint(rover.u + 0.6); ax = nx - rover.x; ay = ny - rover.y; l = Math.hypot(ax, ay) || 1; }
+    if (l > 90) { rover.u = nearestU(rover.x, rover.y); [tx, ty] = ahead(rover.u); ax = tx - rover.x; ay = ty - rover.y; l = Math.hypot(ax, ay) || 1; }
     const k = 1 - Math.exp(-dt * 8);
     const sp = ROVER.speed * Math.min(1.6, Math.max(0.6, l / 20));   // catch up if it lags, ease off if it is ahead
     rover.vx += (ax / l * sp - rover.vx) * k;
@@ -253,10 +281,10 @@
     const dx = Math.cos(a), dy = Math.sin(a);
     let onWire = false, lastWire = -1e9, wireStart = 0, inside = solid(sx, sy);
     if (Math.random() < 0.003) { const t = ROVER.r + Math.random() * Math.min(W, H) * 0.4; push(sx + dx * t, sy + dy * t, 2, now); }  // the odd stray return
-    const maxT = W + H;   // a hard stop, so a bad number can never hang the page
+    const maxT = (page.x1 - page.x0) + (page.y1 - page.y0);   // a hard stop, so a bad number can never hang the page
     for (let t = ROVER.r; t < maxT; t += 1) {
       const x = sx + dx * t, y = sy + dy * t;
-      if (!(x >= 0 && y >= 0 && x < W && y < H)) return [x, y];
+      if (!inPage(x, y)) return [x, y];
       if (cursor.on && inCursor(x, y)) { push(x, y, 1, now); return [x, y]; }
       const sN = solid(x, y);
       if (sN && !inside) { push(x + dx * (Math.random() - .5) * 1.6, y + dy * (Math.random() - .5) * 1.6, 0, now); return [x, y]; }
@@ -271,6 +299,7 @@
 
   function step(now) {
     const dt = Math.max(0, Math.min(60, now - last)) / 1000; last = now;
+    syncFrame();
     driveRover(dt, now);
     if (!isFinite(rover.x) || !isFinite(rover.y) || !isFinite(rover.heading)) {
       const [x, y] = pathPoint(rover.u); rover.x = x; rover.y = y; rover.vx = rover.vy = 0; rover.heading = 0;
@@ -282,25 +311,32 @@
 
   function draw(now) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
+    ctx.clearRect(0, 0, VW, VH);
+    ctx.translate(ox, oy);   // everything below is in hero coordinates
     const fg = cssVar('--fg', '#111');
     const accent = cssVar('--accent', '#0c869b');
+    const hit = cssVar('--hit', '#e8732a');
 
-    // the beam, from the lidar window on the rover's back
+    // the beam, from the lidar window on the rover's back; drawn no longer than the block is wide
     const hx = rover.x + Math.cos(angle) * 4, hy = rover.y + Math.sin(angle) * 4;
     if (!reduced) {
-      const g = ctx.createLinearGradient(hx, hy, beamEnd[0], beamEnd[1]);
+      let ex = beamEnd[0], ey = beamEnd[1];
+      const bl = Math.hypot(ex - hx, ey - hy);
+      if (bl > W) { ex = hx + (ex - hx) * W / bl; ey = hy + (ey - hy) * W / bl; }
+      const g = ctx.createLinearGradient(hx, hy, ex, ey);
       g.addColorStop(0, accent); g.addColorStop(1, 'rgba(12,134,155,0)');
       ctx.strokeStyle = g; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(beamEnd[0], beamEnd[1]); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex, ey); ctx.stroke();
     }
 
-    // readings: nodes in the text colour, cursor hits in the accent, wires weaker
+    // readings: nodes in the text colour, cursor hits in their own colour, wires weaker
+    const vx0 = -ox - 2, vy0 = -oy - 2, vx1 = VW - ox + 2, vy1 = VH - oy + 2;   // only what is on screen
     for (let pass = 0; pass < 3; pass++) {
-      ctx.fillStyle = pass === 1 ? accent : fg;
+      ctx.fillStyle = pass === 1 ? hit : fg;
       const isWire = pass === 2;
       for (let i = 0; i < N; i++) {
         if (kind[i] !== pass || pt[i] === 0) continue;
+        if (px[i] < vx0 || px[i] > vx1 || py[i] < vy0 || py[i] > vy1) continue;
         const age = (now - pt[i]) / LIFE;
         if (age >= 1) continue;
         const a = 1 - age;
@@ -324,6 +360,11 @@
       ctx.globalAlpha = 1;
     }
 
+    drawRover();
+  }
+
+  function drawRover() {
+    const accent = cssVar('--accent', '#0c869b');
     // the rover, seen from above: four wheels, a body, and the lidar puck on its back
     ctx.save();
     ctx.translate(rover.x, rover.y); ctx.rotate(rover.heading);
@@ -350,24 +391,39 @@
   function resize() {
     const r = hero.getBoundingClientRect(), b = band.getBoundingClientRect();
     dpr = Math.min(2, window.devicePixelRatio || 1);
-    W = Math.max(1, Math.round(r.width)); H = Math.max(1, Math.round(r.height));
+    VW = window.innerWidth; VH = window.innerHeight;
+    canvas.width = Math.round(VW * dpr); canvas.height = Math.round(VH * dpr);
+    canvas.style.width = VW + 'px'; canvas.style.height = VH + 'px';
+    const nw = Math.max(1, Math.round(r.width)), nh = Math.max(1, Math.round(r.height));
+    const changed = nw !== W || nh !== H;   // only the block's own size matters to the scene (not, say, a phone's URL bar)
+    W = nw; H = nh;
     bandTop = b.top - r.top; bandH = b.height;
     cx = W / 2; cy = bandTop + bandH / 2;
-    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    buildScene(); pt.fill(0);
-    if (!rover.x && !rover.y) { const [x, y] = pathPoint(0); rover.x = x; rover.y = y; }
-    rover.u = nearestU(rover.x, rover.y);
+    if (changed) {
+      buildScene(); pt.fill(0);
+      if (!rover.x && !rover.y) { const [x, y] = pathPoint(0); rover.x = x; rover.y = y; }
+      rover.u = nearestU(rover.x, rover.y);
+    }
+    syncFrame();
+    if (reduced) drawStatic();
+  }
+
+  // reduced motion: the network as a still map, redrawn as the page scrolls
+  let still = null;
+  function drawStatic() {
+    if (!still) { still = []; for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (solid(x, y) || wire(x, y)) still.push(x, y); }
+    syncFrame();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, VW, VH); ctx.translate(ox, oy);
+    ctx.globalAlpha = 0.4; ctx.fillStyle = cssVar('--fg', '#111');
+    for (let i = 0; i < still.length; i += 2) ctx.fillRect(still[i], still[i + 1], 1, 1);
+    ctx.globalAlpha = 1;
+    drawRover();
   }
 
   function loop(now) { step(now); draw(now); requestAnimationFrame(loop); }
 
   // the cursor object follows the mouse, or a finger while it is touching the top block
-  const place = e => {
-    const r = hero.getBoundingClientRect();
-    const x = e.clientX - r.left, y = e.clientY - r.top;
-    cursor.on = x >= 0 && y >= 0 && x <= r.width && y <= r.height;
-    cursor.x = x; cursor.y = y;
-  };
+  const place = e => { cursor.cx = e.clientX; cursor.cy = e.clientY; cursor.on = true; };
   window.addEventListener('pointermove', place);
   window.addEventListener('pointerdown', place);
   window.addEventListener('pointerup', e => { if (e.pointerType === 'touch') cursor.on = false; });
@@ -397,10 +453,8 @@
 
   resize();
   if (reduced) {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.globalAlpha = 0.4; ctx.fillStyle = cssVar('--fg', '#111');
-    for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (solid(x, y) || wire(x, y)) ctx.fillRect(x, y, 1, 1);
-    draw(performance.now());
+    window.addEventListener('scroll', drawStatic, { passive: true });
+    document.addEventListener('themechange', drawStatic);
   } else {
     requestAnimationFrame(loop);
   }

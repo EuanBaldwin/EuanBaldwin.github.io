@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Image credits · Euan Baldwin</title>
 <meta name="description" content="Sources and licences for the images on euanbaldwin.github.io.">
@@ -21,7 +22,8 @@
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preload" href="assets/fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/style.css?v=4">
+<link rel="stylesheet" href="assets/style.css?v=5">
+<script src="assets/site.js?v=5" defer></script>
 </head>
 <body>
 <header class="top">
@@ -39,6 +41,10 @@
     <a class="icon mail" href="mailto:euanebaldwin@gmail.com" title="Email" aria-label="Email">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="21" height="17" rx="2.5"/><path d="M2.5 6l9.5 6.8L21.5 6"/></svg>
     </a>
+    <button class="icon theme" type="button" aria-label="Switch to dark mode" title="Dark mode">
+      <svg class="moon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
+    </button>
   </nav>
 </header>
 
@@ -51,7 +57,7 @@
     <li><strong>London from the air</strong>: Pierre Blaché, <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>, via <a href="https://commons.wikimedia.org/wiki/File:London_-_Flickr_-_Pierre_Blach%C3%A9.jpg">Wikimedia Commons</a>. Cropped.</li>
     <li><strong>The Whitworth Building arch, University of Manchester</strong> (MSc): photograph © The University of Manchester.</li>
     <li><strong>Ernest Rutherford’s laboratory at the University of Manchester, c. 1910</strong> (BSc): photographer unknown, public domain.</li>
-    <li><strong>Leo Rover</strong>: Oracle96, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via <a href="https://commons.wikimedia.org/wiki/File:Leo-Rover.jpg">Wikimedia Commons</a>.</li>
+    <li><strong>Leo Rover</strong>: product photograph © <a href="https://fictionlab.pl/leo-rover/">Fictionlab</a>, the rover’s makers, placed on the tile colour.</li>
     <li><strong>Sustainable Development Goal 11 icon</strong>: the United Nations, used to refer to the goal.</li>
     <li><strong>Logos</strong> belong to the Safe AI Forum, the Centre for Effective Altruism, Effective Altruism Manchester, the Corrie Hotel, BlueDot Impact and Giving What We Can, and are used to link to them.</li>
     <li><strong>Everything else</strong> (the warehouse render, Grad-CAM figure, path planner, code, lidar scan and neutron paths) is my own work. The Standard Model chart is the one reproduced in my particle catalogue report.</li>

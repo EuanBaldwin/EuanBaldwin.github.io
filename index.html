@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Euan Baldwin</title>
 <meta name="description" content="Euan Baldwin works on making the development of advanced AI go well: project manager at the Safe AI Forum and events at the Centre for Effective Altruism.">
@@ -21,7 +22,8 @@
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preload" href="assets/fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/style.css?v=4">
+<link rel="stylesheet" href="assets/style.css?v=5">
+<script src="assets/site.js?v=5" defer></script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"Person","name":"Euan Baldwin","url":"https://euanbaldwin.github.io/","jobTitle":"Project manager","worksFor":[{"@type":"Organization","name":"Safe AI Forum","url":"https://saif.org"},{"@type":"Organization","name":"Centre for Effective Altruism","url":"https://www.centreforeffectivealtruism.org"}],"alumniOf":{"@type":"CollegeOrUniversity","name":"University of Manchester"},"sameAs":["https://www.linkedin.com/in/euan-baldwin-643416231/","https://github.com/EuanBaldwin"]}
 </script>
@@ -49,6 +51,10 @@
     <a class="icon mail" href="mailto:euanebaldwin@gmail.com" title="Email" aria-label="Email">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="21" height="17" rx="2.5"/><path d="M2.5 6l9.5 6.8L21.5 6"/></svg>
     </a>
+    <button class="icon theme" type="button" aria-label="Switch to dark mode" title="Dark mode">
+      <svg class="moon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
+    </button>
   </nav>
 </header>
 <div class="art" aria-hidden="true"></div>
@@ -89,12 +95,12 @@
       <p>Distinction, ranked first in the cohort</p>
       <span class="when mono">2024 – 25</span>
     </a>
-    <div class="card">
+    <a class="card" href="portfolio/bsc_physics.html">
       <img loading="lazy" decoding="async" src="assets/img/edu-bsc.jpg" alt="">
       <h3>BSc Physics, University of Manchester</h3>
       <p>First-class honours</p>
       <span class="when mono">2021 – 24</span>
-    </div>
+    </a>
   </div>
 </section>
 
@@ -108,13 +114,13 @@
       <span class="when mono">MSc dissertation · 2025</span>
     </a>
     <a class="card" href="portfolio/autonomous_search_robot.html">
-      <img loading="lazy" decoding="async" src="assets/img/leo-rover.jpg" alt="">
+      <img loading="lazy" decoding="async" class="light" src="assets/img/leo-rover.jpg" alt=""><img loading="lazy" decoding="async" class="dark" src="assets/img/leo-rover-dark.jpg" alt="">
       <h3>Search &amp; retrieval robot</h3>
       <p>A Leo Rover that explores, finds objects and brings them back on its own.</p>
       <span class="when mono">Group project · MSc · 2025</span>
     </a>
     <a class="card" href="portfolio/sensor_characterisation.html">
-      <img loading="lazy" decoding="async" src="assets/img/lidar-scan.svg" alt="">
+      <img loading="lazy" decoding="async" class="light" src="assets/img/lidar-scan.svg" alt=""><img loading="lazy" decoding="async" class="dark" src="assets/img/lidar-scan-dark.svg" alt="">
       <h3>Lidar characterisation</h3>
       <p>How well the RPLIDAR A2M12 holds up for navigation on a small rover.</p>
       <span class="when mono">MSc project · 2025</span>
@@ -126,7 +132,7 @@
       <span class="when mono">Coursework · MSc · 2025</span>
     </a>
     <a class="card" href="portfolio/path_planner.html">
-      <picture><source srcset="assets/img/astar-dark.png" media="(prefers-color-scheme: dark)"><img loading="lazy" decoding="async" src="assets/img/astar.jpg" alt=""></picture>
+      <img loading="lazy" decoding="async" class="light" src="assets/img/astar.jpg" alt=""><img loading="lazy" decoding="async" class="dark" src="assets/img/astar-dark.png" alt="">
       <h3>A* path planner</h3>
       <p>Collision-free routes through mapped environments for a mobile robot.</p>
       <span class="when mono">Coursework · MSc · 2025</span>
@@ -168,7 +174,7 @@
       <span class="when mono">BSc project · 2024</span>
     </a>
     <a class="card" href="portfolio/particle_catalogue.html">
-      <span class="tile"><img loading="lazy" decoding="async" class="contain invertible" style="--pad:5%" src="assets/img/standard-model.jpg" alt=""></span>
+      <span class="tile"><img loading="lazy" decoding="async" class="invertible" src="assets/img/standard-model.jpg" alt=""></span>
       <h3>Particle catalogue</h3>
       <p>The Standard Model as an object-oriented C++ codebase.</p>
       <span class="when mono">C++ · BSc</span>
@@ -205,6 +211,6 @@
   <span><a href="credits.html">Image credits</a></span>
   <span>2026</span>
 </footer>
-<script src="assets/lidar.js?v=4"></script>
+<script src="assets/lidar.js?v=5"></script>
 </body>
 </html>
