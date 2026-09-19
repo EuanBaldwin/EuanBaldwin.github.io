@@ -168,6 +168,32 @@
   }
   const inPage = (x, y) => x >= page.x0 && y >= page.y0 && x < page.x1 && y < page.y1;
 
+  // ---- an easter egg at the foot of the page: a line of text only the lidar can reveal ----
+  // Both edges of every letter stroke give a return and the beam carries on, so a pass across
+  // it outlines the words. It sits in the gap above the footer, in hero coordinates.
+  const egg = { x: 0, y: 0, w: 0, h: 0, data: null };
+  function placeEgg() {
+    const foot = document.querySelector('.foot');
+    if (!foot) return;
+    const hr = hero.getBoundingClientRect(), fr = foot.getBoundingClientRect();
+    const text = 'you drove all the way down here. nice.';
+    const off = document.createElement('canvas');
+    const o = off.getContext('2d');
+    const size = Math.min(22, Math.max(15, Math.round(hr.width / 30)));
+    o.font = `600 ${size}px "Inter Tight", system-ui, sans-serif`;
+    egg.w = Math.ceil(o.measureText(text).width) + 8; egg.h = Math.ceil(size * 1.3);
+    off.width = egg.w; off.height = egg.h;
+    o.font = `600 ${size}px "Inter Tight", system-ui, sans-serif`; o.textBaseline = 'middle'; o.fillStyle = '#000';
+    o.fillText(text, 4, egg.h / 2);
+    egg.data = o.getImageData(0, 0, egg.w, egg.h).data;
+    egg.x = (fr.left + fr.width / 2) - hr.left - egg.w / 2;              // centred on the page
+    egg.y = fr.top - hr.top - egg.h - 14;                                // in the gap above the footer
+  }
+  const inEgg = (x, y) => {
+    const u = x - egg.x, v = y - egg.y;
+    return egg.data !== null && u >= 0 && v >= 0 && u < egg.w && v < egg.h && egg.data[((v | 0) * egg.w + (u | 0)) * 4 + 3] > 100;
+  };
+
   const idx = (x, y) => ((y | 0) * maskW + (x | 0)) * 4;
   const inBounds = (x, y) => x >= 0 && y >= 0 && x < maskW && y < maskH;
   const solid = (x, y) => inBounds(x, y) && mask[idx(x, y) + 3] > 60 && mask[idx(x, y)] > 128;
@@ -241,20 +267,20 @@
       }
       return;
     }
-    // advance the waypoint along the curve at roughly constant speed
-    const [px0, py0] = pathPoint(rover.u), [px1, py1] = pathPoint(rover.u + 1e-3);
-    const dlen = Math.hypot(px1 - px0, py1 - py0) / 1e-3;
-    rover.u += ROVER.speed * dt / Math.max(dlen, 1);
-    if (rover.u >= route.length) rover.u -= route.length;
-    if (rover.u < 0) rover.u += route.length;
-    // steer towards a point about 30 px ahead along the route; the pull grows if it falls behind
-    const ahead = u0 => { let u = u0; for (let i = 0; i < 30; i++) { const [x, y] = pathPoint(u); if (Math.hypot(x - rover.x, y - rover.y) >= 30) break; u += 0.1; } return pathPoint(u); };
+    // pure pursuit: first slide u forward to wherever on the route is nearest the rover, so the
+    // aim point can never fall behind it (that is what made it spin round at corners)
+    const dist = u => { const [x, y] = pathPoint(u); return Math.hypot(x - rover.x, y - rover.y); };
+    let bestU = rover.u, bestD = dist(rover.u);
+    for (let du = 0.05; du <= 1.5; du += 0.05) { const d = dist(rover.u + du); if (d < bestD) { bestD = d; bestU = rover.u + du; } }
+    rover.u = ((bestU % route.length) + route.length) % route.length;
+    // then aim at the first point about 30 px further along
+    const ahead = u0 => { let u = u0; for (let i = 0; i < 40; i++) { if (dist(u) >= 30) break; u += 0.1; } return pathPoint(u); };
     let [tx, ty] = ahead(rover.u);
     let ax = tx - rover.x, ay = ty - rover.y;
     let l = Math.hypot(ax, ay) || 1;
     if (l > 90) { rover.u = nearestU(rover.x, rover.y); [tx, ty] = ahead(rover.u); ax = tx - rover.x; ay = ty - rover.y; l = Math.hypot(ax, ay) || 1; }
     const k = 1 - Math.exp(-dt * 8);
-    const sp = ROVER.speed * Math.min(1.6, Math.max(0.6, l / 20));   // catch up if it lags, ease off if it is ahead
+    const sp = ROVER.speed * (l > 60 ? 1.6 : 1);   // hurry only when it is far from the route (coming home)
     rover.vx += (ax / l * sp - rover.vx) * k;
     rover.vy += (ay / l * sp - rover.vy) * k;
     rover.x += rover.vx * dt; rover.y += rover.vy * dt;
@@ -279,13 +305,15 @@
 
   function cast(sx, sy, a, now) {
     const dx = Math.cos(a), dy = Math.sin(a);
-    let onWire = false, lastWire = -1e9, wireStart = 0, inside = solid(sx, sy);
+    let onWire = false, lastWire = -1e9, wireStart = 0, inside = solid(sx, sy), onEgg = false;
     if (Math.random() < 0.003) { const t = ROVER.r + Math.random() * Math.min(W, H) * 0.4; push(sx + dx * t, sy + dy * t, 2, now); }  // the odd stray return
     const maxT = (page.x1 - page.x0) + (page.y1 - page.y0);   // a hard stop, so a bad number can never hang the page
     for (let t = ROVER.r; t < maxT; t += 1) {
       const x = sx + dx * t, y = sy + dy * t;
       if (!inPage(x, y)) return [x, y];
       if (cursor.on && inCursor(x, y)) { push(x, y, 1, now); return [x, y]; }
+      const e = inEgg(x, y);
+      if (e !== onEgg) { push(x + dx * (Math.random() - .5), y + dy * (Math.random() - .5), 0, now); onEgg = e; }   // both edges of each stroke
       const sN = solid(x, y);
       if (sN && !inside) { push(x + dx * (Math.random() - .5) * 1.6, y + dy * (Math.random() - .5) * 1.6, 0, now); return [x, y]; }
       inside = sN;
@@ -404,7 +432,7 @@
       if (!rover.x && !rover.y) { const [x, y] = pathPoint(0); rover.x = x; rover.y = y; }
       rover.u = nearestU(rover.x, rover.y);
     }
-    syncFrame();
+    syncFrame(); placeEgg();
     if (reduced) drawStatic();
   }
 
@@ -431,6 +459,8 @@
   window.addEventListener('pointerleave', () => { cursor.on = false; });
   document.addEventListener('mouseleave', () => { cursor.on = false; });
   window.addEventListener('resize', resize);
+  window.addEventListener('load', placeEgg);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeEgg);
 
   // driving: WASD always; arrow keys once the block has been clicked (Escape hands them back)
   const keyName = e => e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
