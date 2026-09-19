@@ -96,10 +96,10 @@
     // how far a corridor's centre line can wander sideways without touching a layer
     const halfA = (xM - xL) / 2, slack = c => (c === 'A' || c === 'B') ? Math.max(0, halfA - (R + ROVER.r + 16)) : R * 1.5;
     const jitter = (v, a) => v + (rnd() * 2 - 1) * a;
-    const through = (name, d) => {
+    const through = (name, d, which) => {
       const to = d.a === cur ? d.b : d.a;
       let ys = d.ys; if (lastDoor && lastDoor.name === name && ys.length > 1) ys = ys.filter(v => v !== lastDoor.y);
-      const dy = pick(ys);
+      const dy = which === undefined ? pick(ys) : d.ys[which];
       const r1 = run * (0.8 + rnd() * 0.6), r2 = run * (0.8 + rnd() * 0.6);
       add(jitter(X[cur], slack(cur) * 0.5), dy);                         // up or down the corridor to the door height
       const dir = X[to] > X[cur] ? 1 : -1;
@@ -128,6 +128,12 @@
       cur = to; y = yy; lastLane = yy; lastDoor = null;
     };
     const doorsFrom = c => Object.entries(doors).filter(([, d]) => d.a === c || d.b === c);
+
+    // the opening is always the same: straight through the network by the lower gaps, back
+    // through the upper gaps, then up and over the intro text; the walk takes over from there
+    through('left', doors.left, 1); through('midl', doors.midl, 2); through('right', doors.right, 1);
+    through('right', doors.right, 0); through('midl', doors.midl, 0); through('left', doors.left, 0);
+    lane('R', yTop, true);
 
     let sinceHeader = 0;
     while (pts.length < 170) {
@@ -189,9 +195,10 @@
     egg.x = (fr.left + fr.width / 2) - hr.left - egg.w / 2;              // centred on the page
     egg.y = fr.top - hr.top - egg.h - 14;                                // in the gap above the footer
   }
+  let eggNear = false;   // set each frame: is the rover within about a screen of the message?
   const inEgg = (x, y) => {
     const u = x - egg.x, v = y - egg.y;
-    return egg.data !== null && u >= 0 && v >= 0 && u < egg.w && v < egg.h && egg.data[((v | 0) * egg.w + (u | 0)) * 4 + 3] > 100;
+    return eggNear && u >= 0 && v >= 0 && u < egg.w && v < egg.h && egg.data[((v | 0) * egg.w + (u | 0)) * 4 + 3] > 100;
   };
 
   const idx = (x, y) => ((y | 0) * maskW + (x | 0)) * 4;
@@ -328,6 +335,7 @@
   function step(now) {
     const dt = Math.max(0, Math.min(60, now - last)) / 1000; last = now;
     syncFrame();
+    eggNear = egg.data !== null && Math.abs(rover.y - (egg.y + egg.h / 2)) < VH * 0.85 && Math.abs(rover.x - (egg.x + egg.w / 2)) < VW;
     driveRover(dt, now);
     if (!isFinite(rover.x) || !isFinite(rover.y) || !isFinite(rover.heading)) {
       const [x, y] = pathPoint(rover.u); rover.x = x; rover.y = y; rover.vx = rover.vy = 0; rover.heading = 0;
