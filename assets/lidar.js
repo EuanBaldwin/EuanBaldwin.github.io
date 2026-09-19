@@ -343,7 +343,6 @@
     ctx.translate(ox, oy);   // everything below is in hero coordinates
     const fg = cssVar('--fg', '#111');
     const accent = cssVar('--accent', '#0c869b');
-    const hit = cssVar('--hit', '#e8732a');
 
     // the beam, from the lidar window on the rover's back; drawn no longer than the block is wide
     const hx = rover.x + Math.cos(angle) * 4, hy = rover.y + Math.sin(angle) * 4;
@@ -357,10 +356,10 @@
       ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex, ey); ctx.stroke();
     }
 
-    // readings: nodes in the text colour, cursor hits in their own colour, wires weaker
+    // readings: nodes and cursor hits in the text colour, wires weaker
     const vx0 = -ox - 2, vy0 = -oy - 2, vx1 = VW - ox + 2, vy1 = VH - oy + 2;   // only what is on screen
     for (let pass = 0; pass < 3; pass++) {
-      ctx.fillStyle = pass === 1 ? hit : fg;
+      ctx.fillStyle = fg;
       const isWire = pass === 2;
       for (let i = 0; i < N; i++) {
         if (kind[i] !== pass || pt[i] === 0) continue;
