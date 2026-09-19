@@ -60,6 +60,17 @@ img { display: block; }
 .blurb a:hover, .home:hover { color: var(--accent); }
 .home { font-weight: 600; }
 .utility { display: flex; gap: 1.1rem; align-items: center; }
+/* the icons stay put while the page scrolls (not on phones, where the header stacks and they would cover the text) */
+@media (min-width: 601px) {
+  .top { padding-right: calc(var(--gutter) + 200px); }   /* room for the pinned icons */
+  .utility {
+    position: fixed; z-index: 3;
+    top: calc(var(--gutter) - .45rem); right: calc(var(--gutter) - .7rem);
+    padding: .45rem .7rem; border-radius: 999px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+}
 .utility .icon { display: inline-flex; color: var(--muted); transition: color .2s, transform .2s; }
 .utility .icon svg { display: block; fill: currentColor; }
 .utility .icon:hover { transform: translateY(-1px); }

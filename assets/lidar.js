@@ -128,12 +128,21 @@
       cur = to; y = yy; lastLane = yy; lastDoor = null;
     };
     const doorsFrom = c => Object.entries(doors).filter(([, d]) => d.a === c || d.b === c);
+    // a short pass over the intro text only (top left), then straight back down into the network
+    const overText = () => {
+      const blurb = document.querySelector('.blurb');
+      const hr = hero.getBoundingClientRect(), br = blurb ? blurb.getBoundingClientRect() : null;
+      const textEnd = Math.min(W - edge, br ? br.right - hr.left : W * 0.5);
+      add(X.L, yTop); add(edge, yText + 6); add((edge + textEnd) / 2, yText); add(textEnd, yText);
+      add(X.A, yTop);
+      cur = 'A'; y = yTop; lastLane = yTop; lastDoor = null;
+    };
 
     // the opening is always the same: straight through the network by the lower gaps, back
     // through the upper gaps, then up and over the intro text; the walk takes over from there
     through('left', doors.left, 1); through('midl', doors.midl, 2); through('right', doors.right, 1);
     through('right', doors.right, 0); through('midl', doors.midl, 0); through('left', doors.left, 0);
-    lane('R', yTop, true);
+    overText();
 
     let sinceHeader = 0;
     while (pts.length < 170) {
