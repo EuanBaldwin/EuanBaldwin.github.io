@@ -155,6 +155,7 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 }
 .card { display: block; min-width: 0; }
 .card img {
+  display: block;   /* no inline baseline gap, so swapping a light image for a dark one can never shift the row */
   width: 100%;
   aspect-ratio: 3 / 2;
   object-fit: cover;
@@ -268,12 +269,12 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 .card img.dark { display: none; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .card img.light { display: none; }
-  :root:not([data-theme="light"]) .card img.dark { display: inline; }
+  :root:not([data-theme="light"]) .card img.dark { display: block; }
   :root:not([data-theme="light"]) .utility .theme .moon { display: none; }
   :root:not([data-theme="light"]) .utility .theme .sun { display: block; }
 }
 :root[data-theme="dark"] .card img.light { display: none; }
-:root[data-theme="dark"] .card img.dark { display: inline; }
+:root[data-theme="dark"] .card img.dark { display: block; }
 :root[data-theme="dark"] .utility .theme .moon { display: none; }
 :root[data-theme="dark"] .utility .theme .sun { display: block; }
 

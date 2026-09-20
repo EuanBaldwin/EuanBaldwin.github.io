@@ -367,7 +367,9 @@
     const dx = Math.cos(a), dy = Math.sin(a);
     let onWire = false, lastWire = -1e9, wireStart = 0, inside = solid(sx, sy);
     if (Math.random() < 0.003) { const t = ROVER.r + Math.random() * Math.min(W, H) * 0.4; push(sx + dx * t, sy + dy * t, 2, now); }  // the odd stray return
-    const maxT = (page.x1 - page.x0) + (page.y1 - page.y0);   // a hard stop, so a bad number can never hang the page
+    // the lidar's range is the width of the block, the same as the drawn beam: nothing further away, like a
+    // cursor far down the page, gets a reading (and the range doubles as a hard stop so nothing can hang the page)
+    const maxT = Math.min(W, (page.x1 - page.x0) + (page.y1 - page.y0));
     for (let t = ROVER.r; t < maxT; t += 1) {
       const x = sx + dx * t, y = sy + dy * t;
       if (!inPage(x, y)) return [x, y];
