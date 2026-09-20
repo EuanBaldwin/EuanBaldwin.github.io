@@ -359,9 +359,9 @@
   const kind = new Uint8Array(N);        // 0 node, 1 cursor, 2 wire, 3 the hidden message
   let head = 0;
   const REV = 1900;                      // ms per revolution of the lidar
-  const LIFE = REV * 1.6;                // a reading outlives a revolution and fades to almost nothing
-  const RAYS = 8;
-  let angle = 0, last = performance.now(), beamEnd = [0, 0];
+  const LIFE = REV * 2.2;                // a reading outlives a revolution, then fades smoothly to nothing
+  let RAYS = 8;                          // rays per frame; scales with the block's width so far-off nodes still get dense returns
+  let spin = 0, angle = 0, last = performance.now(), beamEnd = [0, 0];   // spin: the head's angle on the rover; angle: in the world
 
   function push(x, y, k, now) { px[head] = x; py[head] = y; pt[head] = now; kind[head] = k; head = (head + 1) % N; }
 
@@ -397,8 +397,9 @@
       const [x, y] = pathPoint(rover.u); rover.x = x; rover.y = y; rover.vx = rover.vy = 0; rover.heading = 0;
     }
     const da = (Math.PI * 2) * (dt * 1000 / REV);
-    for (let k = 0; k < RAYS; k++) beamEnd = cast(rover.x, rover.y, angle + (k / RAYS) * da, now);
-    angle = (angle + da) % (Math.PI * 2);
+    for (let k = 0; k < RAYS; k++) beamEnd = cast(rover.x, rover.y, rover.heading + spin + (k / RAYS) * da, now);
+    spin = (spin + da) % (Math.PI * 2);
+    angle = rover.heading + spin;   // the head is mounted on the rover, so the beam turns with it
   }
 
   function draw(now) {
@@ -431,7 +432,7 @@
         const age = (now - pt[i]) / (isEgg ? LIFE * 3 : LIFE);   // the message lingers, so a sweep leaves it readable
         if (age >= 1) continue;
         const a = 1 - age;
-        ctx.globalAlpha = (isWire ? 0.55 : 1) * (0.03 + 0.92 * a * a * a);
+        ctx.globalAlpha = (isWire ? 0.55 : 1) * 0.95 * a * a * (3 - 2 * a);   // eases in and out, reaching zero with no edge
         const sz = isWire ? 1 + 0.4 * a : isEgg ? 2 : 1.3 + 0.9 * a;
         ctx.fillRect(px[i] - sz / 2, py[i] - sz / 2, sz, sz);
       }
@@ -497,6 +498,7 @@
     const nw = Math.max(1, Math.round(r.width)), nh = Math.max(1, Math.round(r.height));
     const changed = nw !== W || nh !== H;   // only the block's own size matters to the scene (not, say, a phone's URL bar)
     W = nw; H = nh;
+    RAYS = Math.max(8, Math.min(24, Math.round(W / 100)));
     bandTop = b.top - r.top; bandH = b.height;
     cx = W / 2; cy = bandTop + bandH / 2;
     if (changed) {
@@ -524,7 +526,12 @@
 
   // the cursor object follows the mouse, or a finger while it is touching the top block
   const stickEl = document.querySelector('.stick');
-  const place = e => { if (stickEl && stickEl.contains(e.target)) return; cursor.cx = e.clientX; cursor.cy = e.clientY; cursor.on = true; };
+  const place = e => {
+    if (stickEl && stickEl.contains(e.target)) return;
+    const r = hero.getBoundingClientRect();   // only over the block: elsewhere the cursor is a hand, not the arrow we model
+    cursor.cx = e.clientX; cursor.cy = e.clientY;
+    cursor.on = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  };
   if (stickEl) {   // the thumbstick: drag the knob, the rover follows; the thumb on it is not a lidar obstacle
     const knob = stickEl.querySelector('.knob');
     const move = e => {
