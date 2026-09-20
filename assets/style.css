@@ -8,17 +8,18 @@
   --muted: #737373;   /* 4.7:1 on white, so small grey text passes WCAG AA */
   --rule: #e8e8e8;
   --accent: #0c869b;
+  --accent-small: #0b7f93; /* 4.7:1 on white, for the 9px citation markers */
   --tile: #f4f4f3;
   --gutter: clamp(16px, 2.5vw, 32px);
   --measure: 36rem;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e0e0e; --fg: #ededed; --muted: #8a8a8a; --rule: #232323; --accent: #3fb0c4; --tile: #171717;
+    --bg: #0e0e0e; --fg: #ededed; --muted: #8a8a8a; --rule: #232323; --accent: #3fb0c4; --accent-small: #3fb0c4; --tile: #171717;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e0e0e; --fg: #ededed; --muted: #8a8a8a; --rule: #232323; --accent: #3fb0c4; --tile: #171717;
+  --bg: #0e0e0e; --fg: #ededed; --muted: #8a8a8a; --rule: #232323; --accent: #3fb0c4; --accent-small: #3fb0c4; --tile: #171717;
 }
 
 * { box-sizing: border-box; }
@@ -55,8 +56,8 @@ img { display: block; }
   letter-spacing: -0.005em;
 }
 .blurb a, .home { text-decoration: none; transition: color .15s; }
-.blurb sup { font-size: .6em; line-height: 0; vertical-align: super; margin-left: .05em; color: var(--accent); font-weight: 500; letter-spacing: 0; }
-.blurb a:hover sup { color: var(--accent); }
+.blurb sup { font-size: .6em; line-height: 0; vertical-align: super; margin-left: .05em; color: var(--accent-small); font-weight: 500; letter-spacing: 0; }
+.blurb a:hover sup { color: var(--accent-small); }
 .blurb a:hover, .home:hover { color: var(--accent); }
 .home { font-weight: 600; }
 .utility { display: flex; gap: 1.1rem; align-items: center; }
