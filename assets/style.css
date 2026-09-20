@@ -288,7 +288,8 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 /* Driving hint for the rover */
 .drive-hint { position: absolute; right: var(--gutter); bottom: 0; margin: 0; z-index: 2; opacity: .8; transition: opacity .6s; pointer-events: none; }
 .hero.driven .drive-hint { opacity: 0; }
-@media (hover: none) { .drive-hint { display: none; } }
+.drive-hint .coarse { display: none; }
+@media (hover: none) { .drive-hint .fine { display: none; } .drive-hint .coarse { display: inline; } }
 
 /* Thumbstick for driving the rover on touch devices. Hidden until the band is tapped; it then appears
    under the finger, pinned to the screen so it stays put while the page scrolls, and fades once let go. */

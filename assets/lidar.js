@@ -271,6 +271,7 @@
   if (showRoute) { window.lidarRover = rover; window.lidarRoute = () => route; }   // debug hooks
   const keys = new Set();
   const stick = { x: 0, y: 0, on: false };   // thumbstick vector, unit-ish, for touch driving
+  let scrollCarry = 0;                        // sub-pixel remainder of the page-follow scroll
   let armed = false;   // arrow keys only steer after a click on the block, so they do not stop the page scrolling
   // the route is followed as a smooth closed spline; u counts route segments
   const pathPoint = u => {
@@ -322,8 +323,9 @@
       // keep a hand-driven rover in view: scroll the page along with it
       if (fwd || turn || stick.on) {
         const vy = rover.y - view.y0, m = 90;
-        const dyScroll = vy < m ? vy - m : vy > VH - m ? vy - (VH - m) : 0;
-        if (dyScroll) window.scrollBy(0, dyScroll);
+        scrollCarry += vy < m ? vy - m : vy > VH - m ? vy - (VH - m) : 0;
+        const whole = Math.trunc(scrollCarry);   // whole pixels only: fractional scrolls round unevenly and stutter
+        if (whole) { window.scrollBy(0, whole); scrollCarry -= whole; }
       }
       return;
     }
@@ -545,7 +547,8 @@
     stickEl.addEventListener('pointerup', release); stickEl.addEventListener('pointercancel', release);
     // a tap on the block (a touch that does not move, so scrolling is unaffected) summons the stick
     let tap = null;
-    hero.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && !stickEl.contains(e.target)) tap = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+    const onBand = e => { const b = band.getBoundingClientRect(); return e.clientY >= b.top && e.clientY <= b.bottom && !e.target.closest('a, button, .stick'); };
+    hero.addEventListener('pointerdown', e => { tap = (e.pointerType === 'touch' && onBand(e)) ? { x: e.clientX, y: e.clientY, t: performance.now() } : null; });
     hero.addEventListener('pointerup', e => {
       if (!tap || e.pointerType !== 'touch') return;
       if (Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 12 && performance.now() - tap.t < 500) showAt(e.clientX, e.clientY);
