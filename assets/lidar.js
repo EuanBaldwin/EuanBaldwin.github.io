@@ -362,13 +362,13 @@
   const N = 40000;
   const px = new Float32Array(N), py = new Float32Array(N), pt = new Float32Array(N);
   const kind = new Uint8Array(N);        // 0 node, 1 cursor, 2 wire, 3 the hidden message
-  let head = 0;
+  let head = 0, tail = 0;                // readings are pushed in time order, so the live ones sit between tail and head
   const REV = 1900;                      // ms per revolution of the lidar
   const LIFE = REV * 2.2;                // a reading outlives a revolution, then fades smoothly to nothing
   let RAYS = 8;                          // rays per frame; scales with the block's width so far-off nodes still get dense returns
   let spin = 0, angle = 0, last = performance.now(), beamEnd = [0, 0];   // spin: the head's angle on the rover; angle: in the world
 
-  function push(x, y, k, now) { px[head] = x; py[head] = y; pt[head] = now; kind[head] = k; head = (head + 1) % N; }
+  function push(x, y, k, now) { px[head] = x; py[head] = y; pt[head] = now; kind[head] = k; head = (head + 1) % N; if (head === tail) tail = (tail + 1) % N; }
 
   function cast(sx, sy, a, now) {
     const dx = Math.cos(a), dy = Math.sin(a);
@@ -431,11 +431,15 @@
 
     // readings: nodes and cursor hits in the text colour, wires weaker
     const vx0 = view.x0 - 2, vy0 = view.y0 - 2, vx1 = view.x1 + 2, vy1 = view.y1 + 2;   // only what is on screen
+    // drop everything that has fully faded from the tail, then draw only the live range (a few thousand, not 40,000)
+    while (tail !== head && now - pt[tail] >= LIFE * 3) tail = (tail + 1) % N;
+    const live = (head - tail + N) % N;
     for (let pass = 0; pass < 4; pass++) {
       ctx.fillStyle = fg;
       const isWire = pass === 2, isEgg = pass === 3;
-      for (let i = 0; i < N; i++) {
-        if (kind[i] !== pass || pt[i] === 0) continue;
+      for (let j = 0; j < live; j++) {
+        const i = (tail + j) % N;
+        if (kind[i] !== pass) continue;
         if (px[i] < vx0 || px[i] > vx1 || py[i] < vy0 || py[i] > vy1) continue;
         const age = (now - pt[i]) / (isEgg ? LIFE * 3 : LIFE);   // the message lingers, so a sweep leaves it readable
         if (age >= 1) continue;
