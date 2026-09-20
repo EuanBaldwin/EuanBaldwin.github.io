@@ -252,7 +252,7 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 .cards.orgs .card h3 { margin-top: .9rem; }
 
 /* Credits */
-.credits { padding: 0 var(--gutter); max-width: 80rem; margin-bottom: clamp(40px, 7vh, 80px); }
+.credits { padding: 0 var(--gutter); margin-bottom: clamp(40px, 7vh, 80px); }   /* full width: he wants the lines to run across the page */
 .credits h1 { font-size: 24px; font-weight: 600; margin: 0 0 1.5rem; }
 .credits ul { list-style: none; margin: 0; padding: 0; }
 .credits li { padding: .7rem 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
