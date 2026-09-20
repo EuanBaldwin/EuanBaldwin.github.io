@@ -11,6 +11,11 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://euanbaldwin.github.io/license.html</loc>
+    <lastmod>2026-09-20</lastmod>
+    <priority>0.3</priority>
+  </url>
+  <url>
     <loc>https://euanbaldwin.github.io/portfolio/autonomous_search_robot.html</loc>
     <lastmod>2026-09-20</lastmod>
     <priority>0.7</priority>
