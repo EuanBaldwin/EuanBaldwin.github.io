@@ -222,7 +222,7 @@
     const text = 'you drove all the way down here. nice.';
     const off = document.createElement('canvas');
     const o = off.getContext('2d');
-    const size = Math.min(22, Math.max(15, Math.round(hr.width / 30)));
+    const size = Math.min(30, Math.max(18, Math.round(hr.width / 26)));
     o.font = `600 ${size}px "Inter Tight", system-ui, sans-serif`;
     egg.w = Math.ceil(o.measureText(text).width) + 8; egg.h = Math.ceil(size * 1.3);
     off.width = egg.w; off.height = egg.h;
@@ -338,7 +338,7 @@
   // ---- points ----
   const N = 40000;
   const px = new Float32Array(N), py = new Float32Array(N), pt = new Float32Array(N);
-  const kind = new Uint8Array(N);        // 0 node, 1 cursor, 2 wire
+  const kind = new Uint8Array(N);        // 0 node, 1 cursor, 2 wire, 3 the hidden message
   let head = 0;
   const REV = 1900;                      // ms per revolution of the lidar
   const LIFE = REV * 1.6;                // a reading outlives a revolution and fades to almost nothing
@@ -349,15 +349,14 @@
 
   function cast(sx, sy, a, now) {
     const dx = Math.cos(a), dy = Math.sin(a);
-    let onWire = false, lastWire = -1e9, wireStart = 0, inside = solid(sx, sy), onEgg = false;
+    let onWire = false, lastWire = -1e9, wireStart = 0, inside = solid(sx, sy);
     if (Math.random() < 0.003) { const t = ROVER.r + Math.random() * Math.min(W, H) * 0.4; push(sx + dx * t, sy + dy * t, 2, now); }  // the odd stray return
     const maxT = (page.x1 - page.x0) + (page.y1 - page.y0);   // a hard stop, so a bad number can never hang the page
     for (let t = ROVER.r; t < maxT; t += 1) {
       const x = sx + dx * t, y = sy + dy * t;
       if (!inPage(x, y)) return [x, y];
       if (cursor.on && inCursor(x, y)) { push(x, y, 1, now); return [x, y]; }
-      const e = inEgg(x, y);
-      if (e !== onEgg) { push(x + dx * (Math.random() - .5), y + dy * (Math.random() - .5), 0, now); onEgg = e; }   // both edges of each stroke
+      if (inEgg(x, y) && (t & 1) === 0) push(x, y, 3, now);   // every other pixel inside a letter stroke, so the words fill in solid
       const sN = solid(x, y);
       if (sN && !inside) { push(x + dx * (Math.random() - .5) * 1.6, y + dy * (Math.random() - .5) * 1.6, 0, now); return [x, y]; }
       inside = sN;
@@ -403,17 +402,17 @@
 
     // readings: nodes and cursor hits in the text colour, wires weaker
     const vx0 = -ox - 2, vy0 = -oy - 2, vx1 = VW - ox + 2, vy1 = VH - oy + 2;   // only what is on screen
-    for (let pass = 0; pass < 3; pass++) {
+    for (let pass = 0; pass < 4; pass++) {
       ctx.fillStyle = fg;
-      const isWire = pass === 2;
+      const isWire = pass === 2, isEgg = pass === 3;
       for (let i = 0; i < N; i++) {
         if (kind[i] !== pass || pt[i] === 0) continue;
         if (px[i] < vx0 || px[i] > vx1 || py[i] < vy0 || py[i] > vy1) continue;
-        const age = (now - pt[i]) / LIFE;
+        const age = (now - pt[i]) / (isEgg ? LIFE * 3 : LIFE);   // the message lingers, so a sweep leaves it readable
         if (age >= 1) continue;
         const a = 1 - age;
         ctx.globalAlpha = (isWire ? 0.55 : 1) * (0.03 + 0.92 * a * a * a);
-        const sz = isWire ? 1 + 0.4 * a : 1.3 + 0.9 * a;
+        const sz = isWire ? 1 + 0.4 * a : isEgg ? 2 : 1.3 + 0.9 * a;
         ctx.fillRect(px[i] - sz / 2, py[i] - sz / 2, sz, sz);
       }
     }
