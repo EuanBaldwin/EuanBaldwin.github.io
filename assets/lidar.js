@@ -207,10 +207,15 @@
   }
 
   // where the hero sits in the viewport, and how far the page extends around it
-  function syncFrame() {
+  let heroAbs = { x: 0, y: 0 }, pageSize = { w: 0, h: 0 };
+  function measure() {   // the block's position on the page and the page's size: read on resize and after loads, not every frame
     const r = hero.getBoundingClientRect(), de = document.documentElement;
-    const ax = r.left + window.scrollX, ay = r.top + window.scrollY;
-    page.x0 = -ax; page.y0 = -ay; page.x1 = de.clientWidth - ax; page.y1 = de.scrollHeight - ay;
+    heroAbs = { x: r.left + window.scrollX, y: r.top + window.scrollY }; pageSize = { w: de.clientWidth, h: de.scrollHeight };
+  }
+  function syncFrame() {
+    const ax = heroAbs.x, ay = heroAbs.y;
+    const r = { left: ax - window.scrollX, top: ay - window.scrollY }, de = pageSize;
+    page.x0 = -ax; page.y0 = -ay; page.x1 = de.w - ax; page.y1 = de.h - ay;
     if (pageMode) { ox = 0; oy = 0; } else { ox = r.left; oy = r.top; }
     view.x0 = -r.left; view.y0 = -r.top; view.x1 = view.x0 + VW; view.y1 = view.y0 + VH;
     cursor.x = cursor.cx - r.left; cursor.y = cursor.cy - r.top;
@@ -509,7 +514,7 @@
       if (!rover.x && !rover.y) { const [x, y] = pathPoint(0); rover.x = x; rover.y = y; }
       rover.u = nearestU(rover.x, rover.y);
     }
-    syncFrame(); placeEgg();
+    measure(); syncFrame(); placeEgg();
     if (reduced) drawStatic();
   }
 
@@ -572,7 +577,7 @@
   window.addEventListener('pointerleave', () => { cursor.on = false; });
   document.addEventListener('mouseleave', () => { cursor.on = false; });
   window.addEventListener('resize', resize);
-  const settle = () => { placeEgg(); if (pageMode) resize(); };
+  const settle = () => { measure(); placeEgg(); if (pageMode) resize(); };
   window.addEventListener('load', settle);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
 
