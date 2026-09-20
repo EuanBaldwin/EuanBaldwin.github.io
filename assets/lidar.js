@@ -23,7 +23,12 @@
 
   let W = 0, H = 0, dpr = 1, cx = 0, cy = 0, bandTop = 0, bandH = 0, nodeR = 12, span = 0;
   let VW = 0, VH = 0;                 // viewport size
-  let ox = 0, oy = 0;                 // where the hero's origin sits in the viewport this frame
+  let ox = 0, oy = 0;                 // canvas offset of the hero's origin this frame (0,0 in page mode)
+  // Two ways to place the canvas. On mouse devices it is pinned to the viewport and redrawn with the
+  // scroll offset each frame. On touch devices frames lag the compositor's scrolling, which makes a
+  // pinned canvas jitter, so there the canvas covers the whole page and scrolls with it natively.
+  const pageMode = window.matchMedia('(pointer: coarse)').matches;
+  const view = { x0: 0, y0: 0, x1: 0, y1: 0 };   // the visible part of the page, in hero coordinates
   const page = { x0: 0, y0: 0, x1: 0, y1: 0 };   // the whole page, in hero coordinates
   let mask = null, maskW = 0, maskH = 0;
   let nodeList = [], route = [], layout = null;
@@ -204,10 +209,11 @@
   // where the hero sits in the viewport, and how far the page extends around it
   function syncFrame() {
     const r = hero.getBoundingClientRect(), de = document.documentElement;
-    ox = r.left; oy = r.top;
     const ax = r.left + window.scrollX, ay = r.top + window.scrollY;
     page.x0 = -ax; page.y0 = -ay; page.x1 = de.clientWidth - ax; page.y1 = de.scrollHeight - ay;
-    cursor.x = cursor.cx - ox; cursor.y = cursor.cy - oy;
+    if (pageMode) { ox = 0; oy = 0; } else { ox = r.left; oy = r.top; }
+    view.x0 = -r.left; view.y0 = -r.top; view.x1 = view.x0 + VW; view.y1 = view.y0 + VH;
+    cursor.x = cursor.cx - r.left; cursor.y = cursor.cy - r.top;
   }
   const inPage = (x, y) => x >= page.x0 && y >= page.y0 && x < page.x1 && y < page.y1;
 
@@ -305,7 +311,7 @@
       keepOutOfNodes();
       // keep a hand-driven rover in view: scroll the page along with it
       if (fwd || turn) {
-        const vy = rover.y + oy, m = 90;
+        const vy = rover.y - view.y0, m = 90;
         const dyScroll = vy < m ? vy - m : vy > VH - m ? vy - (VH - m) : 0;
         if (dyScroll) window.scrollBy(0, dyScroll);
       }
@@ -383,7 +389,7 @@
 
   function draw(now) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, VW, VH);
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     ctx.translate(ox, oy);   // everything below is in hero coordinates
     const fg = cssVar('--fg', '#111');
     const accent = cssVar('--accent', '#0c869b');
@@ -401,7 +407,7 @@
     }
 
     // readings: nodes and cursor hits in the text colour, wires weaker
-    const vx0 = -ox - 2, vy0 = -oy - 2, vx1 = VW - ox + 2, vy1 = VH - oy + 2;   // only what is on screen
+    const vx0 = view.x0 - 2, vy0 = view.y0 - 2, vx1 = view.x1 + 2, vy1 = view.y1 + 2;   // only what is on screen
     for (let pass = 0; pass < 4; pass++) {
       ctx.fillStyle = fg;
       const isWire = pass === 2, isEgg = pass === 3;
@@ -461,10 +467,19 @@
 
   function resize() {
     const r = hero.getBoundingClientRect(), b = band.getBoundingClientRect();
-    dpr = Math.min(2, window.devicePixelRatio || 1);
     VW = window.innerWidth; VH = window.innerHeight;
-    canvas.width = Math.round(VW * dpr); canvas.height = Math.round(VH * dpr);
-    canvas.style.width = VW + 'px'; canvas.style.height = VH + 'px';
+    if (pageMode) {   // one canvas over the whole page, its resolution capped so it never gets huge
+      const de = document.documentElement, pw = de.clientWidth, ph = de.scrollHeight;
+      dpr = Math.min(2, window.devicePixelRatio || 1, Math.sqrt(9e6 / (pw * ph)));
+      canvas.classList.add('page');
+      canvas.style.left = -(r.left + window.scrollX) + 'px'; canvas.style.top = -(r.top + window.scrollY) + 'px';
+      canvas.width = Math.round(pw * dpr); canvas.height = Math.round(ph * dpr);
+      canvas.style.width = pw + 'px'; canvas.style.height = ph + 'px';
+    } else {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(VW * dpr); canvas.height = Math.round(VH * dpr);
+      canvas.style.width = VW + 'px'; canvas.style.height = VH + 'px';
+    }
     const nw = Math.max(1, Math.round(r.width)), nh = Math.max(1, Math.round(r.height));
     const changed = nw !== W || nh !== H;   // only the block's own size matters to the scene (not, say, a phone's URL bar)
     W = nw; H = nh;
@@ -484,7 +499,7 @@
   function drawStatic() {
     if (!still) { still = []; for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (solid(x, y) || wire(x, y)) still.push(x, y); }
     syncFrame();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, VW, VH); ctx.translate(ox, oy);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); ctx.translate(ox, oy);
     ctx.globalAlpha = 0.4; ctx.fillStyle = cssVar('--fg', '#111');
     for (let i = 0; i < still.length; i += 2) ctx.fillRect(still[i], still[i + 1], 1, 1);
     ctx.globalAlpha = 1;
@@ -502,8 +517,9 @@
   window.addEventListener('pointerleave', () => { cursor.on = false; });
   document.addEventListener('mouseleave', () => { cursor.on = false; });
   window.addEventListener('resize', resize);
-  window.addEventListener('load', placeEgg);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeEgg);
+  const settle = () => { placeEgg(); if (pageMode) resize(); };
+  window.addEventListener('load', settle);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
 
   // driving: WASD always; arrow keys once the block has been clicked (Escape hands them back)
   const keyName = e => e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();

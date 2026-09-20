@@ -105,6 +105,8 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
   pointer-events: none;
   z-index: 1;
 }
+/* on touch devices the canvas is laid over the whole page instead and scrolls with it, which stays smooth on iOS */
+.hero canvas.page { position: absolute; }
 
 /* ---------- Groups ---------- */
 .group { padding: 0 var(--gutter); margin-bottom: clamp(40px, 7vh, 80px); }
@@ -231,7 +233,7 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 @media (max-width: 600px) {
   .top { flex-direction: column; gap: 1rem; align-items: flex-end; }   /* icons right-aligned under the intro */
   .blurb { font-size: 16px; align-self: stretch; }
-  .foot { flex-direction: column; gap: .25rem; }
+  .foot { flex-wrap: wrap; row-gap: .25rem; }   /* stays one row across the bottom on phones */
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
