@@ -80,7 +80,6 @@
       midl:  { a: 'A', b: 'B', x: xM, ys: [mid(Mn[0][1], Mn[1][1]), mid(Mn[1][1], Mn[2][1]), mid(Mn[2][1], Mn[3][1])] },
       right: { a: 'B', b: 'R', x: xR, ys: [mid(Rn[0][1], Rn[1][1]), mid(Rn[1][1], Rn[2][1])] },
     };
-    const yTop = Math.max(edge, Ln[0][1] - R * 3.2), yBot = Math.min(H - edge, Ln[2][1] + R * 3.2);
     const yText = Math.max(edge, bandTop * 0.45);
 
     let seed = (Math.random() * 2 ** 32) >>> 0;
@@ -89,53 +88,64 @@
 
     const pts = [];
     // waypoints are kept well apart: a cluster of close points makes the spline wriggle and the rover twitch
-    const add = (x, y) => { const l = pts[pts.length - 1]; if (!l || Math.hypot(l[0] - x, l[1] - y) > R * 2) pts.push([x, y]); };
-    let cur = 'L', y = cy, lastDoor = null, lastLane = null;
+    const tags = []; let tag = 'start';
+    const add = (x, y) => { const l = pts[pts.length - 1]; if (!l || Math.hypot(l[0] - x, l[1] - y) > R * 2) { pts.push([x, y]); tags.push(tag); } };
+    const yTop = Math.max(edge, Ln[0][1] - R * 3.2), yBot = Math.min(H - edge, Ln[2][1] + R * 3.6);
+    let cur = 'L', y = yTop, lastDoor = null, lastLane = yTop, vdir = 1;   // vdir: which way it was last heading down the page
     add(X.L, y);
 
     // how far a corridor's centre line can wander sideways without touching a layer
     const halfA = (xM - xL) / 2, slack = c => (c === 'A' || c === 'B') ? Math.max(0, halfA - (R + ROVER.r + 16)) : R * 1.5;
     const jitter = (v, a) => v + (rnd() * 2 - 1) * a;
     const through = (name, d, which) => {
+      tag = 'through:' + name;
       const to = d.a === cur ? d.b : d.a;
       let ys = d.ys; if (lastDoor && lastDoor.name === name && ys.length > 1) ys = ys.filter(v => v !== lastDoor.y);
-      const dy = which === undefined ? pick(ys) : d.ys[which];
+      // prefer a door that keeps it moving the same way along the corridor, so it never has to double back
+      const onward = ys.filter(v => (v - y) * vdir >= 0);
+      const dy = which !== undefined ? d.ys[which] : pick(onward.length ? onward : ys);
+      vdir = Math.sign(dy - y) || vdir;
       const r1 = run * (0.8 + rnd() * 0.6), r2 = run * (0.8 + rnd() * 0.6);
       add(jitter(X[cur], slack(cur) * 0.5), dy);                         // up or down the corridor to the door height
       const dir = X[to] > X[cur] ? 1 : -1;
       add(d.x - dir * r1, dy); add(d.x, dy); add(d.x + dir * r2, dy);    // square through the door
-      cur = to; y = dy; lastDoor = { name, y: dy }; lastLane = null;
+      cur = to; y = dy; lastDoor = { name, y: dy, x: d.x }; lastLane = null;
     };
-    const meander = () => {                                            // sweep to a distant spot in this corridor
-      const lo = yTop + R, hi = yBot - R, far = (hi - lo) * 0.4;
-      let yy = lo + rnd() * (hi - lo);
-      if (Math.abs(yy - y) < far) yy = y < (lo + hi) / 2 ? Math.min(hi, y + far + rnd() * Math.max(0, hi - y - far)) : Math.max(lo, y - far - rnd() * Math.max(0, y - far - lo));
-      add(jitter(X[cur], slack(cur)), yy);
-      y = yy; lastDoor = null;
+    const meander = () => {                                            // sweep on down (or up) this corridor, the way it is already going
+      tag = 'meander:' + cur;
+      const lo = yTop + R, hi = yBot, far = (hi - lo) * 0.4;
+      const dir = vdir || (y < (lo + hi) / 2 ? 1 : -1);
+      const room = dir > 0 ? hi - y : y - lo;
+      if (room < far) { lane(pick(['L', 'A', 'B', 'R'].filter(c => c !== cur)), dir > 0 ? yBot : yTop, dir < 0 && rnd() < 0.5); return; }
+      const yy = y + dir * (far + rnd() * (room - far));
+      const reach = rnd() < 0.35 ? 1 : 0.5;                              // now and then it hugs a layer
+      const side = lastDoor ? (lastDoor.x < X[cur] ? 1 : -1) : (rnd() < 0.5 ? -1 : 1);   // never back towards the door it just used
+      add(X[cur] + side * rnd() * slack(cur) * reach, yy);
+      vdir = Math.sign(yy - y) || vdir; y = yy; lastDoor = null;
     };
     const lane = (to, yy, header) => {
-      if (header) {                                                     // over the icons and along the intro text
-        const goingLeft = X[to] < X[cur];
-        add(X[cur], yTop);
-        add(goingLeft ? W - edge : edge, yText + 6);
-        add(goingLeft ? W * 0.72 : W * 0.28, yText); add(W / 2, yText); add(goingLeft ? W * 0.28 : W * 0.72, yText);
-        add(goingLeft ? edge : W - edge, yText + 6);
-        add(X[to], yTop);
+      tag = (header ? 'header:' : yy === yTop ? 'top:' : 'bottom:') + cur + '>' + to;
+      if (header) {                                                     // an arch up over the intro text: every turn is 90 degrees or less
+        add(X[cur], yTop); add(X[cur], yText);
+        add((X[cur] + X[to]) / 2, yText - 4);
+        add(X[to], yText); add(X[to], yTop);
       } else {
-        const yl = yy === yTop ? Math.max(edge, yy - rnd() * R) : Math.min(H - edge, yy + rnd() * R);
+        const yl = yy === yTop ? Math.max(edge, yy + (rnd() * 1.6 - 1) * R * 0.7) : Math.min(H - edge, yy + (1 - rnd() * 1.6) * R * 0.7);
         add(X[cur], yl); add(mid(X[cur], X[to]), yl); add(X[to], yl);
       }
-      cur = to; y = yy; lastLane = yy; lastDoor = null;
+      vdir = yy === yTop ? 1 : -1; cur = to; y = yy; lastLane = yy; lastDoor = null;
     };
     const doorsFrom = c => Object.entries(doors).filter(([, d]) => d.a === c || d.b === c);
     // a short pass over the intro text only (top left), then straight back down into the network
     const overText = () => {
+      tag = 'overText';
       const blurb = document.querySelector('.blurb');
       const hr = hero.getBoundingClientRect(), br = blurb ? blurb.getBoundingClientRect() : null;
-      const textEnd = Math.min(W - edge, br ? br.right - hr.left : W * 0.5);
-      add(X.L, yTop); add(edge, yText + 6); add((edge + textEnd) / 2, yText); add(textEnd, yText);
-      add(X.A, yTop);
-      cur = 'A'; y = yTop; lastLane = yTop; lastDoor = null;
+      const textEnd = br ? br.right - hr.left : W * 0.5;
+      const xa = edge + R;                                              // up at the left edge of the page
+      const to = X.A <= textEnd * 0.6 ? 'A' : 'L';                      // come down the corridor nearest half way along the text
+      add(xa, yTop); add(xa, yText); add((xa + X[to]) / 2, yText - 4); add(X[to], yText); add(X[to], yTop);
+      cur = to; y = yTop; lastLane = yTop; lastDoor = null; vdir = 1;
     };
 
     // the opening is always the same: straight through the network by the lower gaps, back
@@ -144,33 +154,51 @@
     through('right', doors.right, 0); through('midl', doors.midl, 0); through('left', doors.left, 0);
     overText();
 
-    let sinceHeader = 0;
+    let sinceHeader = 0, sinceBottom = 3;
     while (pts.length < 170) {
+      // every few moves, sweep along the lane under the network to somewhere else (only once it is heading down)
+      if (++sinceBottom >= 5 + Math.floor(rnd() * 3) && lastLane !== yBot && vdir >= 0) {
+        sinceBottom = 0;
+        lane(pick(['L', 'A', 'B', 'R'].filter(c => c !== cur)), yBot, false); continue;
+      }
       // never straight back through the layer just crossed: that is a tight about-turn
       const ds = doorsFrom(cur).filter(([name]) => !lastDoor || lastDoor.name !== name);
       const inside = cur === 'A' || cur === 'B';
       // every handful of moves, go up and drive across the header, coming back down anywhere
-      if (++sinceHeader >= 6 + Math.floor(rnd() * 3)) {
+      if (++sinceHeader >= 6 + Math.floor(rnd() * 3) && vdir <= 0 && lastLane !== yTop) {
         sinceHeader = 0;
         const to = pick(['L', 'A', 'B', 'R'].filter(c => c !== cur));
         lane(to, yTop, true); continue;
       }
       const roll = rnd();
+      // a door behind it would mean a hairpin: if none lie ahead, carry on to the lane at this end instead
+      const onwardDoors = vdir ? ds.filter(([, d]) => d.ys.some(v => (v - y) * vdir >= 0)) : ds;
+      if (ds.length && !onwardDoors.length && lastDoor === null) {
+        const yy = vdir < 0 ? yTop : yBot;
+        if (yy !== lastLane) { lane(pick(['L', 'A', 'B', 'R'].filter(c => c !== cur)), yy, yy === yTop && rnd() < 0.5); continue; }
+      }
       if (roll < (inside ? 0.3 : 0.12) || (!ds.length && roll < 0.5)) { meander(); continue; }
       if (ds.length && roll < (inside ? 0.88 : 0.72)) {
         // inside, lean towards the middle door (staying in the network) over the outer ones
-        const weighted = inside ? ds.flatMap(([name, d]) => name === 'midl' ? [[name, d], [name, d]] : [[name, d]]) : ds;
+        const pool = onwardDoors.length ? onwardDoors : ds;
+        const weighted = inside ? pool.flatMap(([name, d]) => name === 'midl' ? [[name, d], [name, d]] : [[name, d]]) : pool;
         const [name, d] = pick(weighted); through(name, d); continue;
       }
       const to = pick(['L', 'A', 'B', 'R'].filter(c => c !== cur));
-      const yy = pick([yTop, yBot].filter(v => v !== lastLane).concat(lastLane == null ? [] : []));
-      const header = yy === yTop && rnd() < 0.5;
-      lane(to, yy, header);
+      const yy = vdir < 0 ? yTop : yBot;
+      if (yy === lastLane) { meander(); continue; }
+      lane(to, yy, yy === yTop && rnd() < 0.5);
     }
-    if (cur !== 'L') lane('L', Math.abs(y - yTop) < Math.abs(y - yBot) ? yTop : yBot, false);
-    add(X.L, cy);
+    if (cur === 'L') through('left', doors.left);                      // step into the network first
+    if (lastLane === yTop && cur !== 'L') { const [name, d] = pick(doorsFrom(cur)); through(name, d); }   // never straight back along the top lane
+    if (cur === 'L') through('left', doors.left);
+    lane('L', yTop, false);                                            // and home along the top lane, arriving where it started
     if (Math.hypot(pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1]) < 4) pts.pop();  // closed loop: last joins first
-    route = pts.map(([x, yy]) => [Math.min(W - edge, Math.max(edge, x)), Math.min(H - edge, Math.max(edge, yy))]);
+    // corner cutting (Chaikin, twice) turns every square corner into a wide, even arc, so the rover
+    // sweeps round bends instead of pivoting on the spot; straight run-ins through the doors stay straight
+    const chaikin = ps => ps.flatMap((a, i) => { const b = ps[(i + 1) % ps.length]; return [[a[0] * .75 + b[0] * .25, a[1] * .75 + b[1] * .25], [a[0] * .25 + b[0] * .75, a[1] * .25 + b[1] * .75]]; });
+    if (showRoute) window.lidarPts = () => pts.map((q, i) => [q[0], q[1], tags[i]]);
+    route = chaikin(chaikin(pts)).map(([x, yy]) => [Math.min(W - edge, Math.max(edge, x)), Math.min(H - edge, Math.max(edge, yy))]);
   }
 
   // where the hero sits in the viewport, and how far the page extends around it
@@ -234,7 +262,7 @@
 
   // ---- the rover ----
   const rover = { x: 0, y: 0, vx: 0, vy: 0, heading: 0, u: 0, manual: false, lastInput: -1e9 };
-  if (showRoute) window.lidarRover = rover;   // debug hook
+  if (showRoute) { window.lidarRover = rover; window.lidarRoute = () => route; }   // debug hooks
   const keys = new Set();
   let armed = false;   // arrow keys only steer after a click on the block, so they do not stop the page scrolling
   // the route is followed as a smooth closed spline; u counts route segments
@@ -287,10 +315,10 @@
     // aim point can never fall behind it (that is what made it spin round at corners)
     const dist = u => { const [x, y] = pathPoint(u); return Math.hypot(x - rover.x, y - rover.y); };
     let bestU = rover.u, bestD = dist(rover.u);
-    for (let du = 0.05; du <= 1.5; du += 0.05) { const d = dist(rover.u + du); if (d < bestD) { bestD = d; bestU = rover.u + du; } }
+    for (let du = 0.1; du <= 6; du += 0.1) { const d = dist(rover.u + du); if (d < bestD) { bestD = d; bestU = rover.u + du; } }
     rover.u = ((bestU % route.length) + route.length) % route.length;
-    // then aim at the first point about 30 px further along
-    const ahead = u0 => { let u = u0; for (let i = 0; i < 40; i++) { if (dist(u) >= 30) break; u += 0.1; } return pathPoint(u); };
+    // then aim at the first point about 36 px further along
+    const ahead = u0 => { let u = u0; for (let i = 0; i < 150; i++) { if (dist(u) >= 36) break; u += 0.1; } return pathPoint(u); };
     let [tx, ty] = ahead(rover.u);
     let ax = tx - rover.x, ay = ty - rover.y;
     let l = Math.hypot(ax, ay) || 1;
@@ -303,7 +331,7 @@
     const target = Math.atan2(rover.vy, rover.vx);
     let dh = target - rover.heading;
     while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
-    rover.heading += dh * (1 - Math.exp(-dt * 6));
+    rover.heading += dh * (1 - Math.exp(-dt * 10));
     keepOutOfNodes();
   }
 

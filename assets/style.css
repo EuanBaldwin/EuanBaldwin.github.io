@@ -60,23 +60,6 @@ img { display: block; }
 .blurb a:hover, .home:hover { color: var(--accent); }
 .home { font-weight: 600; }
 .utility { display: flex; gap: 1.1rem; align-items: center; }
-/* Pinned pills: the wordmark top left and the icons top right stay put while the page scrolls.
-   On the home page the wordmark only appears once the intro has scrolled away. */
-.pin {
-  position: fixed; z-index: 3; top: calc(var(--gutter) - .45rem);
-  padding: .45rem .7rem; border-radius: 999px;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-}
-.wordmark { left: calc(var(--gutter) - .7rem); line-height: 22px; transition: opacity .3s, transform .3s, color .15s; }
-.wordmark.away { opacity: 0; transform: translateY(-6px); pointer-events: none; }
-@media (min-width: 601px) {
-  .top { padding-right: calc(var(--gutter) + 200px); min-height: calc(var(--gutter) * 2 + 22px); }   /* room for the pinned icons, and height even when everything in it is pinned */
-  .utility.pin { right: calc(var(--gutter) - .7rem); }
-}
-@media (max-width: 600px) {
-  .utility.pin { position: static; padding: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-}
 .utility .icon { display: inline-flex; color: var(--muted); transition: color .2s, transform .2s; }
 .utility .icon svg { display: block; fill: currentColor; }
 .utility .icon:hover { transform: translateY(-1px); }
@@ -93,6 +76,19 @@ img { display: block; }
 .utility .theme:hover { color: var(--fg); }
 .utility .theme svg { fill: none; }
 .utility .theme .sun { display: none; }
+/* The bar: name left, icons right, the full width of the page, pinned to the top. Every page has it.
+   On the home page it stays out of the way until the intro has scrolled off, then slides in. */
+.bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 3;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  height: 52px; padding: 0 var(--gutter);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+  transition: opacity .3s, transform .3s;
+}
+.bar.away { opacity: 0; transform: translateY(-100%); pointer-events: none; }
+body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page starts below it */
 
 /* ---------- Art band ---------- */
 .art {
@@ -233,7 +229,7 @@ img { display: block; }
   .entries > div { grid-template-columns: 1fr; gap: .75rem; }
 }
 @media (max-width: 600px) {
-  .top { flex-direction: column; gap: 1rem; align-items: flex-end; }   /* icons top right, under the pinned wordmark */
+  .top { flex-direction: column; gap: 1rem; align-items: flex-end; }   /* icons right-aligned under the intro */
   .blurb { font-size: 16px; align-self: stretch; }
   .foot { flex-direction: column; gap: .25rem; }
 }

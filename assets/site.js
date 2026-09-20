@@ -24,9 +24,9 @@
   mq.addEventListener('change', label);
 })();
 
-// The wordmark top left: on the home page it only appears once the intro text has scrolled away
+// The bar: on the home page it only appears once the intro text has scrolled away
 (function () {
-  const mark = document.querySelector('.wordmark.away'), blurb = document.querySelector('.blurb');
+  const mark = document.querySelector('.bar.away'), blurb = document.querySelector('.blurb');
   if (!mark) return;
   if (!blurb || !('IntersectionObserver' in window)) { mark.classList.remove('away'); return; }
   new IntersectionObserver(([e]) => mark.classList.toggle('away', e.isIntersecting), { threshold: 0 }).observe(blurb);
