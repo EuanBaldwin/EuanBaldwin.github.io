@@ -270,6 +270,7 @@
   const rover = { x: 0, y: 0, vx: 0, vy: 0, heading: 0, u: 0, manual: false, lastInput: -1e9 };
   if (showRoute) { window.lidarRover = rover; window.lidarRoute = () => route; }   // debug hooks
   const keys = new Set();
+  const stick = { x: 0, y: 0, on: false };   // thumbstick vector, unit-ish, for touch driving
   let armed = false;   // arrow keys only steer after a click on the block, so they do not stop the page scrolling
   // the route is followed as a smooth closed spline; u counts route segments
   const pathPoint = u => {
@@ -298,19 +299,28 @@
   function driveRover(dt, now) {
     const fwd = (keys.has('w') || keys.has('arrowup')) - (keys.has('s') || keys.has('arrowdown'));
     const turn = (keys.has('d') || keys.has('arrowright')) - (keys.has('a') || keys.has('arrowleft'));
-    if (fwd || turn) { rover.lastInput = now; if (!rover.manual) rover.manual = true; }
+    if (fwd || turn || stick.on) { rover.lastInput = now; if (!rover.manual) rover.manual = true; }
     if (rover.manual && now - rover.lastInput > 4000) { rover.manual = false; rover.u = nearestU(rover.x, rover.y); }
     if (rover.manual) {
       // hand-driven: turn on the spot or on the move, and roll forwards or back
+      let sp = fwd * ROVER.speed * 1.5;
       rover.heading += turn * 2.6 * dt;
-      const sp = fwd * ROVER.speed * 1.5;
+      if (stick.on) {   // thumbstick: swing towards the direction of the thumb, speed from how far it is pushed
+        const mag = Math.min(1, Math.hypot(stick.x, stick.y));
+        if (mag > 0.15) {
+          let dh = Math.atan2(stick.y, stick.x) - rover.heading;
+          while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
+          rover.heading += Math.max(-3.2 * dt, Math.min(3.2 * dt, dh));
+          sp = ROVER.speed * 1.5 * mag * Math.max(0.25, Math.cos(dh));
+        }
+      }
       const k = 1 - Math.exp(-dt * 6);
       rover.vx += (Math.cos(rover.heading) * sp - rover.vx) * k;
       rover.vy += (Math.sin(rover.heading) * sp - rover.vy) * k;
       rover.x += rover.vx * dt; rover.y += rover.vy * dt;
       keepOutOfNodes();
       // keep a hand-driven rover in view: scroll the page along with it
-      if (fwd || turn) {
+      if (fwd || turn || stick.on) {
         const vy = rover.y - view.y0, m = 90;
         const dyScroll = vy < m ? vy - m : vy > VH - m ? vy - (VH - m) : 0;
         if (dyScroll) window.scrollBy(0, dyScroll);
@@ -509,7 +519,22 @@
   function loop(now) { step(now); draw(now); requestAnimationFrame(loop); }
 
   // the cursor object follows the mouse, or a finger while it is touching the top block
-  const place = e => { cursor.cx = e.clientX; cursor.cy = e.clientY; cursor.on = true; };
+  const stickEl = document.querySelector('.stick');
+  const place = e => { if (stickEl && stickEl.contains(e.target)) return; cursor.cx = e.clientX; cursor.cy = e.clientY; cursor.on = true; };
+  if (stickEl) {   // the thumbstick: drag the knob, the rover follows; the thumb on it is not a lidar obstacle
+    const knob = stickEl.querySelector('.knob');
+    const move = e => {
+      const r = stickEl.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, lim = r.width / 2 - 12;
+      let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy);
+      if (d > lim) { dx *= lim / d; dy *= lim / d; }
+      stick.x = dx / lim; stick.y = dy / lim;
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    };
+    stickEl.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); stickEl.setPointerCapture(e.pointerId); stick.on = true; stickEl.classList.add('active'); hero.classList.add('driven'); cursor.on = false; move(e); });
+    stickEl.addEventListener('pointermove', e => { if (stick.on) { e.stopPropagation(); move(e); } });
+    const release = () => { stick.on = false; stick.x = stick.y = 0; stickEl.classList.remove('active'); knob.style.transform = ''; };
+    stickEl.addEventListener('pointerup', release); stickEl.addEventListener('pointercancel', release);
+  }
   window.addEventListener('pointermove', place);
   window.addEventListener('pointerdown', place);
   window.addEventListener('pointerup', e => { if (e.pointerType === 'touch') cursor.on = false; });
