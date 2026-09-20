@@ -289,14 +289,17 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 .hero.driven .drive-hint { opacity: 0; }
 @media (hover: none) { .drive-hint { display: none; } }
 
-/* Thumbstick for driving the rover on touch devices: a ring bottom right of the band, knob follows the thumb */
-.stick { display: none; position: absolute; right: var(--gutter); bottom: 6px; width: 76px; height: 76px; z-index: 2;
+/* Thumbstick for driving the rover on touch devices. Hidden until the band is tapped; it then appears
+   under the finger, pinned to the screen so it stays put while the page scrolls, and fades once let go. */
+.stick { position: fixed; left: 0; top: 0; width: 76px; height: 76px; margin: -38px 0 0 -38px; z-index: 4;
   border-radius: 50%; border: 1px solid var(--rule); background: color-mix(in srgb, var(--bg) 70%, transparent);
-  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; opacity: .85; }
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  opacity: 0; pointer-events: none; transition: opacity .35s; }
+.stick.show { opacity: .9; pointer-events: auto; }
 .stick .knob { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%;
   background: var(--muted); opacity: .8; transition: transform .08s; }
 .stick.active .knob { background: var(--accent); opacity: 1; transition: none; }
-@media (pointer: coarse) { .stick { display: block; } }
+@media (pointer: fine) { .stick { display: none; } }
 
 /* Project pages: links as buttons, prev/next, footer at the bottom */
 body { min-height: 100vh; display: flex; flex-direction: column; }

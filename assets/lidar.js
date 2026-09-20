@@ -530,10 +530,25 @@
       stick.x = dx / lim; stick.y = dy / lim;
       knob.style.transform = `translate(${dx}px, ${dy}px)`;
     };
-    stickEl.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); stickEl.setPointerCapture(e.pointerId); stick.on = true; stickEl.classList.add('active'); hero.classList.add('driven'); cursor.on = false; move(e); });
+    let hideTimer = 0;
+    const hideLater = () => { clearTimeout(hideTimer); hideTimer = setTimeout(() => stickEl.classList.remove('show'), 4000); };   // same pause as the autopilot
+    const showAt = (x, y) => {   // under the finger, kept clear of the screen edges
+      stickEl.style.left = Math.max(52, Math.min(window.innerWidth - 52, x)) + 'px';
+      stickEl.style.top = Math.max(60, Math.min(window.innerHeight - 60, y)) + 'px';
+      stickEl.classList.add('show'); hideLater();
+    };
+    stickEl.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); clearTimeout(hideTimer); stickEl.setPointerCapture(e.pointerId); stick.on = true; stickEl.classList.add('active'); hero.classList.add('driven'); cursor.on = false; move(e); });
     stickEl.addEventListener('pointermove', e => { if (stick.on) { e.stopPropagation(); move(e); } });
-    const release = () => { stick.on = false; stick.x = stick.y = 0; stickEl.classList.remove('active'); knob.style.transform = ''; };
+    const release = () => { stick.on = false; stick.x = stick.y = 0; stickEl.classList.remove('active'); knob.style.transform = ''; hideLater(); };
     stickEl.addEventListener('pointerup', release); stickEl.addEventListener('pointercancel', release);
+    // a tap on the block (a touch that does not move, so scrolling is unaffected) summons the stick
+    let tap = null;
+    hero.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && !stickEl.contains(e.target)) tap = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+    hero.addEventListener('pointerup', e => {
+      if (!tap || e.pointerType !== 'touch') return;
+      if (Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 12 && performance.now() - tap.t < 500) showAt(e.clientX, e.clientY);
+      tap = null;
+    });
   }
   window.addEventListener('pointermove', place);
   window.addEventListener('pointerdown', place);
