@@ -5,7 +5,7 @@
 :root {
   --bg: #ffffff;
   --fg: #111111;
-  --muted: #8a8a8a;
+  --muted: #737373;   /* 4.7:1 on white, so small grey text passes WCAG AA */
   --rule: #e8e8e8;
   --accent: #0c869b;
   --tile: #f4f4f3;
@@ -14,11 +14,11 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e0e0e; --fg: #ededed; --muted: #7a7a7a; --rule: #232323; --accent: #3fb0c4; --tile: #171717;
+    --bg: #0e0e0e; --fg: #ededed; --muted: #8a8a8a; --rule: #232323; --accent: #3fb0c4; --tile: #171717;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e0e0e; --fg: #ededed; --muted: #7a7a7a; --rule: #232323; --accent: #3fb0c4; --tile: #171717;
+  --bg: #0e0e0e; --fg: #ededed; --muted: #8a8a8a; --rule: #232323; --accent: #3fb0c4; --tile: #171717;
 }
 
 * { box-sizing: border-box; }
@@ -60,7 +60,8 @@ img { display: block; }
 .blurb a:hover, .home:hover { color: var(--accent); }
 .home { font-weight: 600; }
 .utility { display: flex; gap: 1.1rem; align-items: center; }
-.utility .icon { display: inline-flex; color: var(--muted); transition: color .2s, transform .2s; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.utility .icon { display: inline-flex; color: var(--muted); transition: color .2s, transform .2s; padding: 8px; margin: -8px; }   /* 38px hit target, same visual size */
 .utility .icon svg { display: block; fill: currentColor; }
 .utility .icon:hover { transform: translateY(-1px); }
 .utility .linkedin:hover { color: #0a66c2; }
@@ -166,8 +167,8 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 }
 .card img.contain { object-fit: contain; padding: 12%; }
 .card:hover img { opacity: .8; }
-.card h3 { margin: .7rem 0 .15rem; font-size: 15px; font-weight: 600; line-height: 1.3; }
-.card:hover h3 { color: var(--accent); }
+.card h3, .card h2 { margin: .7rem 0 .15rem; font-size: 15px; font-weight: 600; line-height: 1.3; }
+.card:hover h3, .card:hover h2 { color: var(--accent); }
 .card p { margin: 0 0 .3rem; color: var(--muted); font-size: 13px; line-height: 1.4; }
 .card .when { font-size: 11px; color: var(--muted); }
 
