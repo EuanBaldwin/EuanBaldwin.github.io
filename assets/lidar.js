@@ -368,7 +368,6 @@
   function cast(sx, sy, a, now) {
     const dx = Math.cos(a), dy = Math.sin(a);
     let onWire = false, lastWire = -1e9, wireStart = 0, inside = solid(sx, sy);
-    if (Math.random() < 0.003) { const t = ROVER.r + Math.random() * Math.min(W, H) * 0.4; push(sx + dx * t, sy + dy * t, 2, now); }  // the odd stray return
     // the lidar's range is the width of the block, the same as the drawn beam: nothing further away, like a
     // cursor far down the page, gets a reading (and the range doubles as a hard stop so nothing can hang the page)
     const maxT = Math.min(W, (page.x1 - page.x0) + (page.y1 - page.y0));
@@ -398,6 +397,10 @@
     }
     const da = (Math.PI * 2) * (dt * 1000 / REV);
     for (let k = 0; k < RAYS; k++) beamEnd = cast(rover.x, rover.y, rover.heading + spin + (k / RAYS) * da, now);
+    if (Math.random() < 1.2 * dt) {   // the odd stray return: about one a second, whatever the screen size or frame rate
+      const a = rover.heading + spin + Math.random() * da, t = ROVER.r + Math.random() * Math.min(W, H) * 0.4;
+      push(rover.x + Math.cos(a) * t, rover.y + Math.sin(a) * t, 2, now);
+    }
     spin = (spin + da) % (Math.PI * 2);
     angle = rover.heading + spin;   // the head is mounted on the rover, so the beam turns with it
   }
