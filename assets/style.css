@@ -13,12 +13,10 @@
   --gutter: clamp(16px, 2.5vw, 32px);
   --measure: 36rem;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0e0e0e; --fg: #ededed; --muted: #8a8a8a; --rule: #232323; --accent: #3fb0c4; --accent-small: #3fb0c4; --tile: #171717;
-  }
-}
-:root[data-theme="dark"] {
+/* Dark is the default; the toggle stores "light" to opt out. The base tokens above are the light set. */
+:root { color-scheme: light; }
+:root:not([data-theme="light"]) {
+  color-scheme: dark;
   --bg: #0e0e0e; --fg: #ededed; --muted: #8a8a8a; --rule: #232323; --accent: #3fb0c4; --accent-small: #3fb0c4; --tile: #171717;
 }
 
@@ -266,25 +264,15 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 .foot a:hover { color: var(--accent); }
 
 /* Dark mode: monochrome logos flip to light; white-background charts invert with hues preserved */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .mono-logo { filter: brightness(0) invert(1); }
-  :root:not([data-theme="light"]) .invertible { filter: invert(1) hue-rotate(180deg); }
-}
-:root[data-theme="dark"] .mono-logo { filter: brightness(0) invert(1); }
-:root[data-theme="dark"] .invertible { filter: invert(1) hue-rotate(180deg); }
+:root:not([data-theme="light"]) .mono-logo { filter: brightness(0) invert(1); }
+:root:not([data-theme="light"]) .invertible { filter: invert(1) hue-rotate(180deg); }
 
 /* Images with a dark variant: both are in the markup, and the theme picks one (the hidden one is never fetched) */
 .card img.dark { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .card img.light { display: none; }
-  :root:not([data-theme="light"]) .card img.dark { display: block; }
-  :root:not([data-theme="light"]) .utility .theme .moon { display: none; }
-  :root:not([data-theme="light"]) .utility .theme .sun { display: block; }
-}
-:root[data-theme="dark"] .card img.light { display: none; }
-:root[data-theme="dark"] .card img.dark { display: block; }
-:root[data-theme="dark"] .utility .theme .moon { display: none; }
-:root[data-theme="dark"] .utility .theme .sun { display: block; }
+:root:not([data-theme="light"]) .card img.light { display: none; }
+:root:not([data-theme="light"]) .card img.dark { display: block; }
+:root:not([data-theme="light"]) .utility .theme .moon { display: none; }
+:root:not([data-theme="light"]) .utility .theme .sun { display: block; }
 
 /* a project page can carry a grid of cards (the BSc page lists the physics projects) */
 .project .cards { margin-top: .5rem; }
