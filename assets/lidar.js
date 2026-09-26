@@ -27,6 +27,7 @@
   const ctx = canvas.getContext('2d');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const showRoute = /[?&]route\b/.test(location.search);   // debug: draw the goals, the plan and the hidden nodes
+  const exposure = +((location.search.match(/[?&]exposure=(\d+)/) || [])[1] || 0);   // renders the share image: readings last this many seconds
   // Two ways to place the canvas. On mouse devices it is pinned to the viewport and redrawn with the
   // scroll offset each frame. On touch devices frames lag the compositor's scrolling, which makes a
   // pinned canvas jitter, so there the canvas covers the whole page and scrolls with it natively.
@@ -49,7 +50,7 @@
   function buildScene() {
     const layers = W >= 700 ? [3, 4, 4, 2] : [3, 4, 2];
     const n = layers.length, maxN = Math.max(...layers);
-    const edge = 42 * sc, room = edge + R + 26 * sc;
+    const edge = 42 * sc, room = edge + R + ROVER.r * 2 + 16 * sc;   // enough space outside the network for the rover to pass comfortably
     const span = Math.max(120 * sc, Math.min(W * 0.72, bandH * 3, 1150, W - 2 * room));
     const x0 = cx - span / 2, padY = Math.max(22, bandH * 0.12), pitch = (bandH - 2 * padY) / (maxN - 1);
     const cols = layers.map((k, li) => Array.from({ length: k }, (_, i) => ({ x: x0 + li / (n - 1) * span, y: cy + (i - (k - 1) / 2) * pitch })));
@@ -80,8 +81,8 @@
     const blurb = document.querySelector('.blurb');
     if (blurb) {
       const hr = hero.getBoundingClientRect(), br = blurb.getBoundingClientRect();
-      const yText = Math.max(edge, (br.top + br.bottom) / 2 - hr.top), textEnd = br.right - hr.left;
-      open.push([edge + R, yText], [Math.min(C[1], textEnd * 0.6), yText]);
+      const yText = Math.max(edge, (br.top + br.bottom) / 2 - hr.top), textL = br.left - hr.left, textR = br.right - hr.left;
+      open.push([Math.max(edge + R, textL), yText], [textL + (textR - textL) * 0.55, yText]);   // across the left half of the text
     }
     const loop = [];
     for (let i = 0; i <= n; i++) loop.push([C[i], i % 2 ? jig(0.86) : jig(0.14)]);
@@ -99,7 +100,7 @@
   let PC = 4, PW = 0, PH = 0, pcost = new Float32Array(0);
   function buildCostmap(yTop) {
     PC = Math.max(4 * sc, W / 260); PW = Math.ceil(W / PC); PH = Math.ceil(H / PC); pcost = new Float32Array(PW * PH);
-    const lethal = R + ROVER.r + 3 * sc, decay = 12 * sc, edge = 24 * sc;
+    const lethal = R + ROVER.r + 6 * sc, decay = 12 * sc, edge = 24 * sc;   // a little wider than the hand-driving push-out, so the controller never has to be nudged off a node
     for (let gy = 0; gy < PH; gy++) for (let gx = 0; gx < PW; gx++) {
       const x = (gx + 0.5) * PC, y = (gy + 0.5) * PC, c = gy * PW + gx;
       if (x < edge || x > W - edge || y < edge || y > H - edge) { pcost[c] = Infinity; continue; }
@@ -342,7 +343,7 @@
   }
 
   // ---- readings: a ring buffer in time order, so the live ones sit between tail and head ----
-  const N = 30000;
+  const N = exposure ? 400000 : 30000;
   const px = new Float32Array(N), py = new Float32Array(N), pt = new Float64Array(N), pv = new Float32Array(N), kind = new Uint8Array(N);
   let head = 0, tail = 0;
   function push(x, y, t, v, k) { px[head] = x; py[head] = y; pt[head] = t; pv[head] = v; kind[head] = k; head = (head + 1) % N; if (head === tail) tail = (tail + 1) % N; }
@@ -414,8 +415,10 @@
     let best = routeI, bd = Infinity;
     for (let i = routeI; i < Math.min(route.length, routeI + 60); i++) { const d = Math.hypot(route[i][0] - rover.x, route[i][1] - rover.y); if (d < bd) { bd = d; best = i; } }
     routeI = best;
-    // regulated pure pursuit: steer along the arc to a point about 30 px ahead, slower when that arc is tight
-    const tgt = route[Math.min(route.length - 1, routeI + Math.round(15 * sc))];
+    // regulated pure pursuit: steer along the arc to a point ahead, slower when that arc is tight. The look-ahead
+    // scales with speed (about 30 px at full speed), so on a slow, tight turn it aims close and doesn't cut the corner
+    const look = Math.max(Math.round(10 * sc), Math.min(Math.round(15 * sc), Math.round(Math.hypot(rover.vx, rover.vy) * 0.7 / 2)));
+    const tgt = route[Math.min(route.length - 1, routeI + look)];
     const Ld = Math.max(8 * sc, Math.hypot(tgt[0] - rover.x, tgt[1] - rover.y));
     const alpha = wrap(Math.atan2(tgt[1] - rover.y, tgt[0] - rover.x) - rover.heading);
     const kappa = 2 * Math.sin(alpha) / Ld;
@@ -547,7 +550,7 @@
     }
   }
   function drawPoints() {
-    const P = period(), life = Math.max(1.5, 2.2 * P), fresh = Math.max(0.1, 0.1 * P), eggLife = 12;
+    const P = period(), life = exposure || Math.max(1.5, 2.2 * P), fresh = Math.max(0.1, 0.1 * P), eggLife = 12;
     while (tail !== head && simT - pt[tail] > life) tail = (tail + 1) % N;
     while (eTail !== eHead && simT - et[eTail] > eggLife) eTail = (eTail + 1) % EN;
     const vx0 = view.x0 - 2, vy0 = view.y0 - 2, vx1 = view.x1 + 2, vy1 = view.y1 + 2;   // only what is on screen

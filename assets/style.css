@@ -12,6 +12,7 @@
   --tile: #f4f4f3;
   --gutter: clamp(16px, 2.5vw, 32px);
   --measure: 36rem;
+  --page: 1440px;   /* widest the content gets, gutters included; the hero's art still spans the screen */
 }
 /* Dark is the default; the toggle stores "light" to opt out. The base tokens above are the light set. */
 :root { color-scheme: light; }
@@ -47,9 +48,9 @@ img { display: block; }
 }
 .blurb {
   margin: 0;
-  max-width: var(--measure);
+  max-width: 38em;
   font-weight: 600;
-  font-size: 15px;
+  font-size: clamp(15px, calc(0.5vw + 10px), 19px);
   line-height: 1.4;
   letter-spacing: -0.005em;
 }
@@ -110,13 +111,13 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 .hero canvas.page { position: absolute; }
 
 /* ---------- Groups ---------- */
-.group { padding: 0 var(--gutter); margin-bottom: clamp(40px, 7vh, 80px); }
+.group { padding: 0 var(--gutter); margin-bottom: clamp(56px, 9vh, 112px); }
 .label {
-  margin: 0 0 1rem;
-  font-size: 11px;
+  margin: 0 0 1.25rem;
+  font-size: 13px;
   font-weight: 400;
-  color: var(--muted);
-  letter-spacing: 0.02em;
+  color: var(--fg);
+  letter-spacing: 0.01em;
   padding-bottom: .6rem;
   border-bottom: 1px solid var(--rule);
 }
@@ -246,8 +247,7 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
   * { transition: none !important; }
 }
 
-/* Work tiles: logo on a tile, text centred */
-.cards.orgs .card { text-align: center; }
+/* Work tiles: logo on a tile, text left-aligned like the project cards */
 .cards.orgs .card img.contain { padding: var(--pad, 22%); }
 .cards.orgs .card img { outline: 1px solid var(--rule); outline-offset: -1px; }
 .cards.orgs div.card:hover img { opacity: 1; }
@@ -282,8 +282,14 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 .card .tile img, .cards.orgs .card .tile img { background: transparent; outline: none; }
 
 /* Driving hint for the rover */
-.drive-hint { position: absolute; right: var(--gutter); bottom: 0; margin: 0; z-index: 2; opacity: .8; transition: opacity .6s; pointer-events: none; }
-.hero.driven .drive-hint { opacity: 0; }
+/* A caption for the hero art, with the driving hint under it; the hint fades once someone has driven */
+.drive-hint { position: absolute; right: var(--gutter); bottom: 0; margin: 0; z-index: 2; text-align: right; line-height: 1.6; pointer-events: none; }
+.drive-hint .what, .drive-hint .how { display: block; }
+.drive-hint .what { text-wrap: balance; }
+@media (max-width: 600px) { .drive-hint { left: var(--gutter); } }
+.drive-hint .how { opacity: .8; transition: opacity .6s; }
+.hero.driven .drive-hint .how { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .drive-hint .how { display: none; } }   /* the rover stays parked then, so there's nothing to drive */
 .drive-hint .coarse { display: none; }
 @media (hover: none) { .drive-hint .fine { display: none; } .drive-hint .coarse { display: inline; } }
 
@@ -307,3 +313,22 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .pager a:hover { color: var(--accent); }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Page width: content stops growing at --page and sits in the middle; the bar lines its name and icons up with it */
+.top, .art, .group, .project, .credits, .foot { width: 100%; max-width: var(--page); margin-left: auto; margin-right: auto; }
+.bar { padding-left: max(var(--gutter), calc((100% - var(--page)) / 2 + var(--gutter))); padding-right: max(var(--gutter), calc((100% - var(--page)) / 2 + var(--gutter))); }
+.drive-hint { right: max(var(--gutter), calc((100% - var(--page)) / 2 + var(--gutter))); }
+
+/* Degrees: on the four-column grid each spans two columns, photo the size of any other tile and the details beside it */
+@media (min-width: 1101px) {
+  .cards .card.edu { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto 1fr; column-gap: var(--gutter); align-content: start; }
+  .cards .card.edu img { grid-column: 1; grid-row: 1 / span 3; }
+  .cards .card.edu h3 { grid-column: 2; margin-top: 0; font-size: 17px; }
+  .cards .card.edu p, .cards .card.edu .when { grid-column: 2; }
+}
+
+/* Next project, at the foot of a project page */
+.project .next { display: block; max-width: 40rem; margin-top: clamp(48px, 10vh, 120px); padding-top: 1.1rem; border-top: 1px solid var(--rule); }
+.project .next .mono { display: block; margin-bottom: .35rem; }
+.project .next .title { font-size: clamp(18px, 1.6vw, 22px); font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; transition: color .15s; }
+.project .next:hover .title { color: var(--accent); }
