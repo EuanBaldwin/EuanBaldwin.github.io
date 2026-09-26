@@ -1,16 +1,24 @@
-// A small rover drives one long, continuous loop around and through a hidden 3-4-3
-// neural network, with a 2D lidar spinning on its back. Its route is a walk over
-// the map's safe corridors (the strips between layers, the space outside them, and
-// lanes above and below), passing square through the gaps in each layer. Nodes are solid: a beam stops at the
-// first one it hits, so only the side facing the rover is seen at any moment,
-// but because the rover keeps moving, the whole network gets mapped over time.
-// Wires are thin: like a real lidar hitting a cable, the beam gets a faint
-// return and carries on. Your cursor (or a finger) is solid too: the beam
-// stops at it and casts a shadow. Each reading keeps the range error it was
-// measured with until the next sweep replaces it, and fades slowly.
-// The canvas is pinned to the viewport and everything is kept in the hero's own
-// coordinates, so the rover can also be driven off the block and around the rest
-// of the page (it never goes there by itself).
+// A small rover drives around and through a hidden neural network (3-4-4-2 on wide screens,
+// 3-4-2 on narrow ones) with a 2D lidar on its back, modelled on an RPLIDAR A2M12: 16,000
+// readings a second, ten turns a second once its motor is up to speed, 12 m range, drawn to
+// scale with the rover (22 px = 45 cm). Nodes are solid, so only the side facing the rover
+// returns; wires are thin, so a beam sometimes gets a weak return off one and stops there.
+// Readings carry range noise that grows with distance, glancing hits drop out, and a beam
+// that clips the edge of a node can land between it and whatever is behind (a "ghost").
+// Your cursor (or a finger) is solid too: the beam stops at it and casts a shadow.
+//
+// On load the head turns slowly and the beam is drawn, then it spins up to 10 Hz and the beam
+// blurs out, as the real sensor's does. Under the points, a faint occupancy map remembers what
+// the lidar has seen and forgets it again after about half a minute.
+//
+// The rover works through a fixed list of goals that sweep back and forth across the network.
+// For each one it plans the shortest route on a costmap that keeps it clear of the nodes (A*,
+// straightened across open space, corners rounded), and follows it with regulated pure pursuit,
+// which slows it on tight curves so it sweeps round them. The dashed line is that plan.
+//
+// The canvas is pinned to the viewport (or, on touch devices, covers the whole page) and
+// everything is kept in the hero's own coordinates, so the rover can also be driven off the
+// block and around the rest of the page (it never goes there by itself).
 (function () {
   const canvas = document.getElementById('lidar');
   if (!canvas) return;
@@ -18,197 +26,199 @@
   const band = document.querySelector('.art') || canvas.parentElement;
   const ctx = canvas.getContext('2d');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const showRoute = /[?&]route\b/.test(location.search);   // debug: draw the rover's route and the hidden nodes
-  const cssVar = (n, d) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d;
-
-  let W = 0, H = 0, dpr = 1, cx = 0, cy = 0, bandTop = 0, bandH = 0, nodeR = 12, span = 0;
-  let VW = 0, VH = 0;                 // viewport size
-  let ox = 0, oy = 0;                 // canvas offset of the hero's origin this frame (0,0 in page mode)
+  const showRoute = /[?&]route\b/.test(location.search);   // debug: draw the goals, the plan and the hidden nodes
   // Two ways to place the canvas. On mouse devices it is pinned to the viewport and redrawn with the
   // scroll offset each frame. On touch devices frames lag the compositor's scrolling, which makes a
   // pinned canvas jitter, so there the canvas covers the whole page and scrolls with it natively.
   const pageMode = window.matchMedia('(pointer: coarse)').matches;
+
+  // ---- the sensor ----
+  const BEAMS = 1600, STEP = 2 * Math.PI / BEAMS;   // readings per turn: 16 kHz at 10 Hz, so 0.225° apart
+  const MAP_RATE = 8000;                            // the map uses every other reading of the real-time stream
+  const SLOW = 1.9, FAST = 0.1, HOLD = 2.4, RAMP = 4;   // start-up: 1.9 s a turn for 2.4 s, then 4 s to reach 10 Hz
+
+  let W = 0, H = 0, dpr = 1, cx = 0, cy = 0, bandTop = 0, bandH = 0, VW = 0, VH = 0;
+  let ox = 0, oy = 0;                 // canvas offset of the hero's origin this frame (0,0 in page mode)
+  let sc = 1, R = 12, PX_PER_M = 49, RANGE = 590, MAXU = 295, SPEED = 42;
+  const ROVER = { len: 22, wid: 15, r: 12 };
   const view = { x0: 0, y0: 0, x1: 0, y1: 0 };   // the visible part of the page, in hero coordinates
   const page = { x0: 0, y0: 0, x1: 0, y1: 0 };   // the whole page, in hero coordinates
-  let mask = null, maskW = 0, maskH = 0;
-  let nodeList = [], route = [], layout = null;
-  const ROVER = { len: 22, wid: 15, r: 12, speed: 42 };  // px and px/s
+  let nodes = [], wires = [], goals = [], openN = 0, start = { x: 0, y: 0 };
 
-  // ---- hidden scene: a 3-4-3 neural network, every node wired to the next layer ----
+  // ---- hidden scene: a small fully connected network, layers centred like a textbook diagram ----
   function buildScene() {
-    const off = document.createElement('canvas');
-    off.width = maskW = W; off.height = maskH = H;
-    const o = off.getContext('2d');
-    const layers = [3, 4, 3];
-    // network width: a share of the screen, but always leaving room for the rover to drive round the outside
-    const roomOutside = ROVER.r + 30 + Math.min(15, bandH * 0.05) + ROVER.r + 14;
-    const span = Math.max(120, Math.min(W * 0.62, bandH * 2.2, W - 2 * roomOutside));
-    const x0 = cx - span / 2;
-    const padY = Math.max(22, bandH * 0.12);
-    const R = Math.max(9, Math.min(15, bandH * 0.05));
-    nodeR = R;
-    const nodes = layers.map((n, li) => {
-      const x = x0 + (li / (layers.length - 1)) * span;
-      return Array.from({ length: n }, (_, i) => [x, bandTop + padY + (i / (n - 1)) * (bandH - padY * 2)]);
-    });
-    nodeList = nodes.flat();
-    layout = { nodes, R, span };
-    o.strokeStyle = '#000'; o.lineWidth = 1.5;
-    for (let li = 0; li < nodes.length - 1; li++) {
-      for (const a of nodes[li]) for (const b of nodes[li + 1]) {
-        const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy);
-        o.beginPath(); o.moveTo(a[0] + dx / d * R, a[1] + dy / d * R); o.lineTo(b[0] - dx / d * R, b[1] - dy / d * R); o.stroke();
-      }
+    const layers = W >= 700 ? [3, 4, 4, 2] : [3, 4, 2];
+    const n = layers.length, maxN = Math.max(...layers);
+    const edge = 42 * sc, room = edge + R + 26 * sc;
+    const span = Math.max(120 * sc, Math.min(W * 0.72, bandH * 3, 1150, W - 2 * room));
+    const x0 = cx - span / 2, padY = Math.max(22, bandH * 0.12), pitch = (bandH - 2 * padY) / (maxN - 1);
+    const cols = layers.map((k, li) => Array.from({ length: k }, (_, i) => ({ x: x0 + li / (n - 1) * span, y: cy + (i - (k - 1) / 2) * pitch })));
+    nodes = cols.flat();
+    wires = [];
+    for (let li = 0; li < n - 1; li++) for (const a of cols[li]) for (const b of cols[li + 1]) {
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), ux = dx / d, uy = dy / d;
+      wires.push({ x1: a.x + ux * R, y1: a.y + uy * R, x2: b.x - ux * R, y2: b.y - uy * R, len: d - 2 * R });
     }
-    o.fillStyle = '#f00';   // nodes are solid discs, marked in the red channel
-    for (const [x, y] of nodeList) { o.beginPath(); o.arc(x, y, R, 0, Math.PI * 2); o.fill(); }
-    mask = o.getImageData(0, 0, maskW, maskH).data;
-    buildRoute();
+
+    // goals: a fixed opening, then a loop that sweeps back and forth between the layers
+    const gTop = Math.min(...nodes.map(q => q.y)), gBot = Math.max(...nodes.map(q => q.y));
+    const lvl = f => gTop + (gBot - gTop) * f;
+    const xs = cols.map(c => c[0].x);
+    const yTop = Math.max(edge, gTop - R * 3.2), yBot = Math.min(H - edge, gBot + R * 3.6);
+    const out = Math.max(R * 5, Math.min(W * 0.12, (W - span) / 2 - edge - R * 2));
+    const C = [Math.max(edge, xs[0] - out)];
+    for (let i = 1; i < n; i++) C.push((xs[i - 1] + xs[i]) / 2);
+    C.push(Math.min(W - edge, xs[n - 1] + out));
+    let seed = (Math.random() * 2 ** 32) >>> 0;   // a little variety each visit in how high or low each goal sits
+    const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const jig = f => lvl(Math.min(0.95, Math.max(0.05, f + (rnd() - 0.5) * 0.12)));
+
+    // the opening: through the network low down, back along the top, then over the left part of the intro text
+    const open = [];
+    for (let i = 1; i <= n; i++) open.push([C[i], lvl(0.8)]);
+    for (let i = n - 1; i >= 0; i--) open.push([C[i], lvl(0.2)]);
+    const blurb = document.querySelector('.blurb');
+    if (blurb) {
+      const hr = hero.getBoundingClientRect(), br = blurb.getBoundingClientRect();
+      const yText = Math.max(edge, (br.top + br.bottom) / 2 - hr.top), textEnd = br.right - hr.left;
+      open.push([edge + R, yText], [Math.min(C[1], textEnd * 0.6), yText]);
+    }
+    const loop = [];
+    for (let i = 0; i <= n; i++) loop.push([C[i], i % 2 ? jig(0.86) : jig(0.14)]);
+    loop.push([C[n], yBot]);
+    for (let i = n - 1; i >= 1; i--) loop.push([C[i], (n - i) % 2 ? jig(0.35) : jig(0.68)]);
+    loop.push([C[0], jig(0.55)], [C[0], yTop]);
+    for (let i = 1; i <= n; i++) loop.push([C[i], i % 2 ? jig(0.5) : jig(0.22)]);
+    loop.push([C[n], jig(0.92)], [cx, yBot], [C[0], jig(0.9)]);
+    goals = open.concat(loop); openN = open.length; start = { x: C[0], y: yTop };
+    buildCostmap(yTop);
+    buildMap();
   }
 
-  // ---- route planning: a long closed walk over the map's corridors and doors ----
-  // Corridors: L (outside the left layer), A (between left and middle), B (between middle
-  // and right), R (outside the right layer). Doors: the gaps in each layer. Lanes above and
-  // below the network join any two corridors, and the top lane sometimes goes up through
-  // the header instead. A new seed each visit gives a different, but always sensible, loop.
-  function buildRoute() {
-    const { nodes, R } = layout;
-    const [Ln, Mn, Rn] = nodes;
-    const mid = (a, b) => (a + b) / 2;
-    const xL = Ln[0][0], xM = Mn[0][0], xR = Rn[0][0];
-    const edge = ROVER.r + 30, run = R * 3.2;
-    // the outside corridors sit further out on wide screens, so the loop uses more of the width
-    const out = Math.max(R * 5, Math.min(W * 0.12, (W - layout.span) / 2 - edge - R * 2));
-    const X = { L: Math.max(edge, xL - out), A: mid(xL, xM), B: mid(xM, xR), R: Math.min(W - edge, xR + out) };
-    const doors = {
-      left:  { a: 'L', b: 'A', x: xL, ys: [mid(Ln[0][1], Ln[1][1]), mid(Ln[1][1], Ln[2][1])] },
-      midl:  { a: 'A', b: 'B', x: xM, ys: [mid(Mn[0][1], Mn[1][1]), mid(Mn[1][1], Mn[2][1]), mid(Mn[2][1], Mn[3][1])] },
-      right: { a: 'B', b: 'R', x: xR, ys: [mid(Rn[0][1], Rn[1][1]), mid(Rn[1][1], Rn[2][1])] },
-    };
-    const yText = Math.max(edge, bandTop * 0.45);
-
-    let seed = (Math.random() * 2 ** 32) >>> 0;
-    const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-    const pick = arr => arr[Math.floor(rnd() * arr.length)];
-
-    const pts = [];
-    // waypoints are kept well apart: a cluster of close points makes the spline wriggle and the rover twitch
-    const tags = []; let tag = 'start';
-    const add = (x, y) => { const l = pts[pts.length - 1]; if (!l || Math.hypot(l[0] - x, l[1] - y) > R * 2) { pts.push([x, y]); tags.push(tag); } };
-    const yTop = Math.max(edge, Ln[0][1] - R * 3.2), yBot = Math.min(H - edge, Ln[2][1] + R * 3.6);
-    let cur = 'L', y = yTop, lastDoor = null, lastLane = yTop, vdir = 1;   // vdir: which way it was last heading down the page
-    add(X.L, y);
-
-    // how far a corridor's centre line can wander sideways without touching a layer
-    const halfA = (xM - xL) / 2, slack = c => (c === 'A' || c === 'B') ? Math.max(0, halfA - (R + ROVER.r + 16)) : R * 1.5;
-    const jitter = (v, a) => v + (rnd() * 2 - 1) * a;
-    const through = (name, d, which) => {
-      tag = 'through:' + name;
-      const to = d.a === cur ? d.b : d.a;
-      let ys = d.ys; if (lastDoor && lastDoor.name === name && ys.length > 1) ys = ys.filter(v => v !== lastDoor.y);
-      // prefer a door that keeps it moving the same way along the corridor, so it never has to double back
-      const onward = ys.filter(v => (v - y) * vdir >= 0);
-      const dy = which !== undefined ? d.ys[which] : pick(onward.length ? onward : ys);
-      vdir = Math.sign(dy - y) || vdir;
-      const r1 = run * (0.8 + rnd() * 0.6), r2 = run * (0.8 + rnd() * 0.6);
-      add(jitter(X[cur], slack(cur) * 0.5), dy);                         // up or down the corridor to the door height
-      const dir = X[to] > X[cur] ? 1 : -1;
-      add(d.x - dir * r1, dy); add(d.x, dy); add(d.x + dir * r2, dy);    // square through the door
-      cur = to; y = dy; lastDoor = { name, y: dy, x: d.x }; lastLane = null;
-    };
-    const meander = () => {                                            // sweep on down (or up) this corridor, the way it is already going
-      tag = 'meander:' + cur;
-      const lo = yTop + R, hi = yBot, far = (hi - lo) * 0.4;
-      const dir = vdir || (y < (lo + hi) / 2 ? 1 : -1);
-      const room = dir > 0 ? hi - y : y - lo;
-      if (room < far) { lane(pick(['L', 'A', 'B', 'R'].filter(c => c !== cur)), dir > 0 ? yBot : yTop, dir < 0 && rnd() < 0.5); return; }
-      const yy = y + dir * (far + rnd() * (room - far));
-      const reach = rnd() < 0.35 ? 1 : 0.5;                              // now and then it hugs a layer
-      const side = lastDoor ? (lastDoor.x < X[cur] ? 1 : -1) : (rnd() < 0.5 ? -1 : 1);   // never back towards the door it just used
-      add(X[cur] + side * rnd() * slack(cur) * reach, yy);
-      vdir = Math.sign(yy - y) || vdir; y = yy; lastDoor = null;
-    };
-    const lane = (to, yy, header) => {
-      tag = (header ? 'header:' : yy === yTop ? 'top:' : 'bottom:') + cur + '>' + to;
-      if (header) {                                                     // an arch up over the intro text: every turn is 90 degrees or less
-        add(X[cur], yTop); add(X[cur], yText);
-        add((X[cur] + X[to]) / 2, yText - 4);
-        add(X[to], yText); add(X[to], yTop);
-      } else {
-        const yl = yy === yTop ? Math.max(edge, yy + (rnd() * 1.6 - 1) * R * 0.7) : Math.min(H - edge, yy + (1 - rnd() * 1.6) * R * 0.7);
-        add(X[cur], yl); add(mid(X[cur], X[to]), yl); add(X[to], yl);
-      }
-      vdir = yy === yTop ? 1 : -1; cur = to; y = yy; lastLane = yy; lastDoor = null;
-    };
-    const doorsFrom = c => Object.entries(doors).filter(([, d]) => d.a === c || d.b === c);
-    // a short pass over the intro text only (top left), then straight back down into the network
-    const overText = () => {
-      tag = 'overText';
-      const blurb = document.querySelector('.blurb');
-      const hr = hero.getBoundingClientRect(), br = blurb ? blurb.getBoundingClientRect() : null;
-      const textEnd = br ? br.right - hr.left : W * 0.5;
-      const xa = edge + R;                                              // up at the left edge of the page
-      const to = X.A <= textEnd * 0.6 ? 'A' : 'L';                      // come down the corridor nearest half way along the text
-      add(xa, yTop); add(xa, yText); add((xa + X[to]) / 2, yText - 4); add(X[to], yText); add(X[to], yTop);
-      cur = to; y = yTop; lastLane = yTop; lastDoor = null; vdir = 1;
-    };
-
-    // the opening is always the same: straight through the network by the lower gaps, back
-    // through the upper gaps, then up and over the intro text; the walk takes over from there
-    through('left', doors.left, 1); through('midl', doors.midl, 2); through('right', doors.right, 1);
-    through('right', doors.right, 0); through('midl', doors.midl, 0); through('left', doors.left, 0);
-    overText();
-
-    let sinceHeader = 0, sinceBottom = 3;
-    while (pts.length < 170) {
-      // every few moves, sweep along the lane under the network to somewhere else (only once it is heading down)
-      if (++sinceBottom >= 5 + Math.floor(rnd() * 3) && lastLane !== yBot && vdir >= 0) {
-        sinceBottom = 0;
-        lane(pick(['L', 'A', 'B', 'R'].filter(c => c !== cur)), yBot, false); continue;
-      }
-      // never straight back through the layer just crossed: that is a tight about-turn
-      const ds = doorsFrom(cur).filter(([name]) => !lastDoor || lastDoor.name !== name);
-      const inside = cur === 'A' || cur === 'B';
-      // every handful of moves, go up and drive across the header, coming back down anywhere
-      if (++sinceHeader >= 6 + Math.floor(rnd() * 3) && vdir <= 0 && lastLane !== yTop) {
-        sinceHeader = 0;
-        const to = pick(['L', 'A', 'B', 'R'].filter(c => c !== cur));
-        lane(to, yTop, true); continue;
-      }
-      const roll = rnd();
-      // a door behind it would mean a hairpin: if none lie ahead, carry on to the lane at this end instead
-      const onwardDoors = vdir ? ds.filter(([, d]) => d.ys.some(v => (v - y) * vdir >= 0)) : ds;
-      if (ds.length && !onwardDoors.length && lastDoor === null) {
-        const yy = vdir < 0 ? yTop : yBot;
-        if (yy !== lastLane) { lane(pick(['L', 'A', 'B', 'R'].filter(c => c !== cur)), yy, yy === yTop && rnd() < 0.5); continue; }
-      }
-      if (roll < (inside ? 0.3 : 0.12) || (!ds.length && roll < 0.5)) { meander(); continue; }
-      if (ds.length && roll < (inside ? 0.88 : 0.72)) {
-        // inside, lean towards the middle door (staying in the network) over the outer ones
-        const pool = onwardDoors.length ? onwardDoors : ds;
-        const weighted = inside ? pool.flatMap(([name, d]) => name === 'midl' ? [[name, d], [name, d]] : [[name, d]]) : pool;
-        const [name, d] = pick(weighted); through(name, d); continue;
-      }
-      const to = pick(['L', 'A', 'B', 'R'].filter(c => c !== cur));
-      const yy = vdir < 0 ? yTop : yBot;
-      if (yy === lastLane) { meander(); continue; }
-      lane(to, yy, yy === yTop && rnd() < 0.5);
+  // ---- planning: a costmap, A*, then straighten and smooth ----
+  let PC = 4, PW = 0, PH = 0, pcost = new Float32Array(0);
+  function buildCostmap(yTop) {
+    PC = Math.max(4 * sc, W / 260); PW = Math.ceil(W / PC); PH = Math.ceil(H / PC); pcost = new Float32Array(PW * PH);
+    const lethal = R + ROVER.r + 3 * sc, decay = 12 * sc, edge = 24 * sc;
+    for (let gy = 0; gy < PH; gy++) for (let gx = 0; gx < PW; gx++) {
+      const x = (gx + 0.5) * PC, y = (gy + 0.5) * PC, c = gy * PW + gx;
+      if (x < edge || x > W - edge || y < edge || y > H - edge) { pcost[c] = Infinity; continue; }
+      let d = Infinity; for (const q of nodes) d = Math.min(d, Math.hypot(x - q.x, y - q.y) - lethal);
+      // expensive close to a node, free in open space, and a little dearer over the intro text so routes only cross it on purpose
+      pcost[c] = d <= 0 ? Infinity : 40 * Math.exp(-d / decay) + (y < yTop - 20 * sc ? 6 : 0);
     }
-    if (cur === 'L') through('left', doors.left);                      // step into the network first
-    if (lastLane === yTop && cur !== 'L') { const [name, d] = pick(doorsFrom(cur)); through(name, d); }   // never straight back along the top lane
-    if (cur === 'L') through('left', doors.left);
-    lane('L', yTop, false);                                            // and home along the top lane, arriving where it started
-    if (Math.hypot(pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1]) < 4) pts.pop();  // closed loop: last joins first
-    // corner cutting (Chaikin, twice) turns every square corner into a wide, even arc, so the rover
-    // sweeps round bends instead of pivoting on the spot; straight run-ins through the doors stay straight
-    const chaikin = ps => ps.flatMap((a, i) => { const b = ps[(i + 1) % ps.length]; return [[a[0] * .75 + b[0] * .25, a[1] * .75 + b[1] * .25], [a[0] * .25 + b[0] * .75, a[1] * .25 + b[1] * .75]]; });
-    if (showRoute) window.lidarPts = () => pts.map((q, i) => [q[0], q[1], tags[i]]);
-    route = chaikin(chaikin(pts)).map(([x, yy]) => [Math.min(W - edge, Math.max(edge, x)), Math.min(H - edge, Math.max(edge, yy))]);
+  }
+  const costAt = (x, y) => { const gx = Math.floor(x / PC), gy = Math.floor(y / PC); return gx < 0 || gy < 0 || gx >= PW || gy >= PH ? Infinity : pcost[gy * PW + gx]; };
+  function nearestFree(gx, gy) {
+    gx = Math.max(0, Math.min(PW - 1, gx)); gy = Math.max(0, Math.min(PH - 1, gy));
+    if (pcost[gy * PW + gx] !== Infinity) return [gx, gy];
+    for (let r = 1; r < 40; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = gx + dx, y = gy + dy;
+      if (x >= 0 && y >= 0 && x < PW && y < PH && pcost[y * PW + x] !== Infinity) return [x, y];
+    }
+    return [gx, gy];
+  }
+  const hA = [], hF = [];   // a binary heap for the open set
+  function hpush(i, f) { hA.push(i); hF.push(f); let k = hA.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (hF[p] <= hF[k]) break; [hA[p], hA[k]] = [hA[k], hA[p]]; [hF[p], hF[k]] = [hF[k], hF[p]]; k = p; } }
+  function hpop() { const top = hA[0], la = hA.pop(), lf = hF.pop(); if (hA.length) { hA[0] = la; hF[0] = lf; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < hA.length && hF[l] < hF[m]) m = l; if (r < hA.length && hF[r] < hF[m]) m = r; if (m === k) break; [hA[m], hA[k]] = [hA[k], hA[m]]; [hF[m], hF[k]] = [hF[k], hF[m]]; k = m; } } return top; }
+  let gScore = null, came = null, closed = null;
+  const DX = [1, -1, 0, 0, 1, 1, -1, -1], DY = [0, 0, 1, -1, 1, -1, 1, -1], DL = [1, 1, 1, 1, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2];
+  function astar(sx, sy, tx, ty) {
+    const N = PW * PH;
+    if (!gScore || gScore.length !== N) { gScore = new Float32Array(N); came = new Int32Array(N); closed = new Uint8Array(N); }
+    gScore.fill(Infinity); closed.fill(0); hA.length = 0; hF.length = 0;
+    const [ax, ay] = nearestFree(Math.floor(sx / PC), Math.floor(sy / PC)), [bx, by] = nearestFree(Math.floor(tx / PC), Math.floor(ty / PC));
+    const s = ay * PW + ax, t = by * PW + bx;
+    gScore[s] = 0; came[s] = -1; hpush(s, 0);
+    while (hA.length) {
+      const c = hpop();
+      if (closed[c]) continue;
+      if (c === t) break;
+      closed[c] = 1;
+      const x = c % PW, y = (c - x) / PW;
+      for (let d = 0; d < 8; d++) {
+        const nx = x + DX[d], ny = y + DY[d];
+        if (nx < 0 || ny < 0 || nx >= PW || ny >= PH) continue;
+        const nb = ny * PW + nx, cost = pcost[nb];
+        if (cost === Infinity || closed[nb]) continue;
+        const g = gScore[c] + DL[d] * (1 + cost / 12);
+        if (g < gScore[nb]) { gScore[nb] = g; came[nb] = c; hpush(nb, g + Math.hypot(nx - bx, ny - by)); }
+      }
+    }
+    if (gScore[t] === Infinity) return null;
+    const out = [];
+    for (let c = t; c !== -1; c = came[c]) { const x = c % PW, y = (c - x) / PW; out.push([(x + 0.5) * PC, (y + 0.5) * PC]); }
+    return out.reverse();
+  }
+  function lineOK(a, b, max) {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(L / (PC * 0.5)));
+    for (let i = 0; i <= n; i++) if (costAt(a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n) > max) return false;
+    return true;
+  }
+  const chaikinOpen = p => { if (p.length < 3) return p; const o = [p[0]]; for (let i = 0; i < p.length - 1; i++) { const a = p[i], b = p[i + 1]; o.push([a[0] * .75 + b[0] * .25, a[1] * .75 + b[1] * .25], [a[0] * .25 + b[0] * .75, a[1] * .25 + b[1] * .75]); } o.push(p[p.length - 1]); return o; };
+  function plan(goal) {
+    let fx = rover.x, fy = rover.y;
+    const pre = [[fx, fy]];
+    // off the block (hand-driven down the page), head straight back to the nearest free spot on it first
+    if (costAt(fx, fy) === Infinity) {
+      const [gx, gy] = nearestFree(Math.floor(fx / PC), Math.floor(fy / PC));
+      fx = (gx + 0.5) * PC; fy = (gy + 0.5) * PC; pre.push([fx, fy]);
+    }
+    // start a little ahead along the heading, so the plan leaves the way the rover is already facing
+    const lx = fx + Math.cos(rover.heading) * 18 * sc, ly = fy + Math.sin(rover.heading) * 18 * sc;
+    const lead = pre.length === 1 && costAt(lx, ly) !== Infinity && lineOK([fx, fy], [lx, ly], 1e9);
+    const raw = astar(lead ? lx : fx, lead ? ly : fy, goal[0], goal[1]);
+    if (!raw) return null;
+    raw[raw.length - 1] = [goal[0], goal[1]];
+    const pulled = [raw[0]];                        // straighten: jump to the furthest point in clear sight through cheap space
+    for (let i = 0; i < raw.length - 1;) {
+      let j = raw.length - 1;
+      while (j > i + 1 && !lineOK(raw[i], raw[j], 9)) j--;
+      pulled.push(raw[j]); i = j;
+    }
+    let pts = pre.concat(lead ? pulled : pulled.slice(1));
+    for (let k = 0; k < 3; k++) { const s = chaikinOpen(pts); if (s.every(p => costAt(p[0], p[1]) !== Infinity || p === s[0])) pts = s; else break; }
+    const outp = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      const a = outp[outp.length - 1], b = pts[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (L < 2) continue;
+      const m = Math.floor(L / 2); for (let s = 1; s <= m; s++) outp.push([a[0] + (b[0] - a[0]) * s / m, a[1] + (b[1] - a[1]) * s / m]);
+    }
+    return outp;
+  }
+
+  // ---- the live occupancy map (10 cm cells, drawn faintly under the points) ----
+  let CELL = 5, GW = 0, GH = 0, lo = new Float32Array(0), edgeFade = new Float32Array(0), offW = null, owc = null, offF = null, ofc = null, imgW = null, imgF = null;
+  function buildMap() {
+    CELL = sc < 1 ? 4 : 5; GW = Math.ceil(W / CELL); GH = Math.ceil(H / CELL); lo = new Float32Array(GW * GH);
+    edgeFade = new Float32Array(GW * GH);   // the map fades out towards the edges of the block instead of stopping in a line
+    const ramp = d => { const u = Math.max(0, Math.min(1, d)); return u * u * (3 - 2 * u); };
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
+      const x = (gx + 0.5) * CELL, y = (gy + 0.5) * CELL;
+      edgeFade[gy * GW + gx] = ramp(x / 40) * ramp((W - x) / 40) * ramp(y / 30) * ramp((H - y) / 90);
+    }
+    offW = document.createElement('canvas'); offW.width = GW; offW.height = GH; owc = offW.getContext('2d'); imgW = owc.createImageData(GW, GH);
+    offF = document.createElement('canvas'); offF.width = GW; offF.height = GH; ofc = offF.getContext('2d'); imgF = ofc.createImageData(GW, GH);
+  }
+  function mapBeam(sx, sy, a, hit, t) {
+    const tEnd = hit && t <= MAXU ? t : MAXU, dx = Math.cos(a), dy = Math.sin(a);
+    let last = -1;
+    for (let s = 6 * sc; s < tEnd - CELL * 0.6; s += CELL * 0.5) {   // every cell the beam crossed is free
+      const gx = Math.floor((sx + dx * s) / CELL), gy = Math.floor((sy + dy * s) / CELL);
+      if (gx < 0 || gy < 0 || gx >= GW || gy >= GH) break;
+      const c = gy * GW + gx;
+      if (c !== last) { lo[c] = Math.max(-2.5, lo[c] - 0.24); last = c; }
+    }
+    if (hit && t <= MAXU) {                                           // and the one where it stopped is occupied
+      const gx = Math.floor((sx + dx * t) / CELL), gy = Math.floor((sy + dy * t) / CELL);
+      if (gx >= 0 && gy >= 0 && gx < GW && gy < GH) { const c = gy * GW + gx; lo[c] = Math.min(3.5, lo[c] + 1.1); }
+    }
   }
 
   // where the hero sits in the viewport, and how far the page extends around it
   let heroAbs = { x: 0, y: 0 }, pageSize = { w: 0, h: 0 };
-  function measure() {   // the block's position on the page and the page's size: read on resize and after loads, not every frame
+  function measure() {   // read on resize and after loads, not every frame
     const r = hero.getBoundingClientRect(), de = document.documentElement;
     heroAbs = { x: r.left + window.scrollX, y: r.top + window.scrollY }; pageSize = { w: de.clientWidth, h: de.scrollHeight };
   }
@@ -220,19 +230,15 @@
     view.x0 = -r.left; view.y0 = -r.top; view.x1 = view.x0 + VW; view.y1 = view.y0 + VH;
     cursor.x = cursor.cx - r.left; cursor.y = cursor.cy - r.top;
   }
-  const inPage = (x, y) => x >= page.x0 && y >= page.y0 && x < page.x1 && y < page.y1;
 
   // ---- an easter egg at the foot of the page: a line of text only the lidar can reveal ----
-  // Both edges of every letter stroke give a return and the beam carries on, so a pass across
-  // it outlines the words. It sits in the gap above the footer, in hero coordinates.
   const egg = { x: 0, y: 0, w: 0, h: 0, data: null };
   function placeEgg() {
     const foot = document.querySelector('.foot');
     if (!foot) return;
     const hr = hero.getBoundingClientRect(), fr = foot.getBoundingClientRect();
     const text = 'you drove all the way down here. nice.';
-    const off = document.createElement('canvas');
-    const o = off.getContext('2d');
+    const off = document.createElement('canvas'), o = off.getContext('2d');
     const size = Math.min(30, Math.max(18, Math.round(hr.width / 26)));
     o.font = `600 ${size}px "Inter Tight", system-ui, sans-serif`;
     egg.w = Math.ceil(o.measureText(text).width) + 8; egg.h = Math.ceil(size * 1.3);
@@ -240,84 +246,150 @@
     o.font = `600 ${size}px "Inter Tight", system-ui, sans-serif`; o.textBaseline = 'middle'; o.fillStyle = '#000';
     o.fillText(text, 4, egg.h / 2);
     egg.data = o.getImageData(0, 0, egg.w, egg.h).data;
-    egg.x = (fr.left + fr.width / 2) - hr.left - egg.w / 2;              // centred on the page
-    egg.y = fr.top - hr.top - egg.h - 14;                                // in the gap above the footer
+    egg.x = (fr.left + fr.width / 2) - hr.left - egg.w / 2;
+    egg.y = fr.top - hr.top - egg.h - 14;
   }
-  let eggNear = false;   // set each frame: is the rover within about a screen of the message?
-  const inEgg = (x, y) => {
-    const u = x - egg.x, v = y - egg.y;
-    return eggNear && u >= 0 && v >= 0 && u < egg.w && v < egg.h && egg.data[((v | 0) * egg.w + (u | 0)) * 4 + 3] > 100;
-  };
-
-  const idx = (x, y) => ((y | 0) * maskW + (x | 0)) * 4;
-  const inBounds = (x, y) => x >= 0 && y >= 0 && x < maskW && y < maskH;
-  const solid = (x, y) => inBounds(x, y) && mask[idx(x, y) + 3] > 60 && mask[idx(x, y)] > 128;
-  const wire = (x, y) => inBounds(x, y) && mask[idx(x, y) + 3] > 60 && mask[idx(x, y)] <= 128;
-
-  // ---- the cursor: an arrow-pointer shape the beam cannot pass ----
-  const CUR = 22;   // the standard arrow pointer is about 12 x 19 px
-  const curMask = document.createElement('canvas');
-  curMask.width = curMask.height = CUR;
-  {
-    const c = curMask.getContext('2d'), k = 1;
-    c.fillStyle = '#000'; c.beginPath();
-    [[0, 0], [0, 16.5], [4.2, 12.8], [7.2, 19], [9.6, 18], [6.7, 11.9], [12, 11.9]].forEach(([x, y], i) => i ? c.lineTo(x * k, y * k) : c.moveTo(x * k, y * k));
-    c.closePath(); c.fill();
+  let eggNear = false, eggCount = 0;
+  function eggRay(sx, sy, dx, dy, tMax, time) {      // the letters don't block the beam: every stroke it crosses returns
+    let t0 = 0, t1 = tMax;
+    for (const [o, d, lo0, hi0] of [[sx, dx, egg.x, egg.x + egg.w], [sy, dy, egg.y, egg.y + egg.h]]) {
+      if (Math.abs(d) < 1e-9) { if (o < lo0 || o > hi0) return; continue; }
+      let a = (lo0 - o) / d, b = (hi0 - o) / d; if (a > b) [a, b] = [b, a];
+      t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 >= t1) return;
+    }
+    for (let t = Math.ceil(t0); t < t1; t += 2) {
+      const u = (sx + dx * t - egg.x) | 0, v = (sy + dy * t - egg.y) | 0;
+      if (egg.data[(v * egg.w + u) * 4 + 3] > 100) pushEgg(sx + dx * t, sy + dy * t, time);
+    }
   }
-  const curData = curMask.getContext('2d').getImageData(0, 0, CUR, CUR).data;
+
+  // ---- the cursor: an arrow-pointer shape (about 12 x 19 px) the beam cannot pass ----
+  const ARROW = [[0, 0], [0, 16.5], [4.2, 12.8], [7.2, 19], [9.6, 18], [6.7, 11.9], [12, 11.9]];
   const cursor = { x: 0, y: 0, cx: 0, cy: 0, on: false };   // cx, cy in viewport coordinates; x, y in hero coordinates
-  const inCursor = (x, y) => {
-    const u = x - cursor.x, v = y - cursor.y;
-    return u >= 0 && v >= 0 && u < CUR && v < CUR && curData[((v | 0) * CUR + (u | 0)) * 4 + 3] > 60;
-  };
+  function castCursor(sx, sy, dx, dy) {
+    let best = Infinity;
+    for (let i = 0; i < ARROW.length; i++) {
+      const a = ARROW[i], b = ARROW[(i + 1) % ARROW.length];
+      const x1 = cursor.x + a[0], y1 = cursor.y + a[1], ex = b[0] - a[0], ey = b[1] - a[1], den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-9) continue;
+      const qx = x1 - sx, qy = y1 - sy, t = (qx * ey - qy * ex) / den, u = (qx * dy - qy * dx) / den;
+      if (t > 0 && u >= 0 && u <= 1 && t < best) best = t;
+    }
+    return best;
+  }
+
+  // ---- ray casting and the sensor model ----
+  const hit = { tN: Infinity, pN: 0, tN2: Infinity, nw: 0 };
+  const WT = new Float32Array(128), WC = new Float32Array(128);
+  function castAll(sx, sy, dx, dy) {
+    hit.tN = Infinity; hit.pN = 0; hit.tN2 = Infinity;
+    for (const q of nodes) {
+      const ex = q.x - sx, ey = q.y - sy, b = ex * dx + ey * dy;
+      if (b <= 0) continue;
+      const c2 = ex * ex + ey * ey - b * b;
+      if (c2 >= R * R) continue;
+      const t = b - Math.sqrt(R * R - c2);
+      if (t <= 0) continue;
+      if (t < hit.tN) { hit.tN2 = hit.tN; hit.tN = t; hit.pN = Math.sqrt(c2); } else if (t < hit.tN2) hit.tN2 = t;
+    }
+    const lim = Math.min(hit.tN, RANGE);
+    let k = 0;
+    for (const w of wires) {
+      const ex = w.x2 - w.x1, ey = w.y2 - w.y1, den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-9) continue;
+      const qx = w.x1 - sx, qy = w.y1 - sy, t = (qx * ey - qy * ex) / den;
+      if (t <= 4 || t >= lim) continue;
+      const u = (qx * dy - qy * dx) / den;
+      if (u < 0 || u > 1 || k >= 128) continue;
+      WT[k] = t; WC[k] = Math.abs(den) / w.len; k++;
+    }
+    for (let i = 1; i < k; i++) { const t = WT[i], c = WC[i]; let j = i - 1; while (j >= 0 && WT[j] > t) { WT[j + 1] = WT[j]; WC[j + 1] = WC[j]; j--; } WT[j + 1] = t; WC[j + 1] = c; }
+    hit.nw = k;
+  }
+  let spare = null;
+  function gauss() {
+    if (spare !== null) { const s = spare; spare = null; return s; }
+    let u, v, s; do { u = Math.random() * 2 - 1; v = Math.random() * 2 - 1; s = u * u + v * v; } while (s >= 1 || s === 0);
+    const m = Math.sqrt(-2 * Math.log(s) / s); spare = v * m; return u * m;
+  }
+  const sig = t => 0.5 + 0.005 * t;            // range noise: about 1% of the distance, plus a floor
+  const ev = { kind: -1, t: 0, x: 0, y: 0, v: 0 };   // kinds: 0 node, 1 cursor, 2 wire, 4 ghost, 5 dust; -1 no return (the egg keeps its own)
+  function sense(sx, sy, a, rate) {
+    const dx = Math.cos(a), dy = Math.sin(a);
+    ev.kind = -1;
+    castAll(sx, sy, dx, dy);
+    const tc = cursor.on ? castCursor(sx, sy, dx, dy) : Infinity;
+    for (let j = 0; j < hit.nw && WT[j] < tc; j++) {           // a thin wire: a partial hit sometimes returns, and a return ends the beam
+      if (Math.random() < 0.12 * Math.sqrt(WC[j])) { ev.kind = 2; ev.t = WT[j] + gauss() * sig(WT[j]); ev.v = 0.3; break; }
+    }
+    if (ev.kind < 0 && tc < hit.tN && tc < RANGE) { ev.kind = 1; ev.t = tc + gauss() * sig(tc) * 0.6; ev.v = 0.9; }
+    else if (ev.kind < 0 && hit.tN < RANGE) {
+      const e = hit.pN / R, cosI = Math.sqrt(Math.max(0, 1 - e * e));
+      const p = 0.995 * Math.min(1, cosI / 0.18) * (1 - 0.7 * (hit.tN / RANGE) ** 4);   // glancing and far hits drop out
+      if (Math.random() < p) {
+        ev.kind = 0; ev.t = hit.tN + gauss() * sig(hit.tN); ev.v = 0.55 + 0.45 * cosI;
+        if (e > 0.86 && Math.random() < 0.4) {                   // the spot straddles the edge: the range lands in between
+          ev.kind = 4; ev.v = 0.35;
+          ev.t = hit.tN2 < hit.tN + 150 ? hit.tN + Math.random() * (hit.tN2 - hit.tN) : hit.tN + 3 + Math.random() * 18;
+        }
+      }
+    }
+    if (Math.random() < 1.2 / rate) {                            // about one dust return a second, near the sensor
+      const t = (16 + Math.random() * 110) * sc;
+      if (ev.kind < 0 || t < ev.t) { ev.kind = 5; ev.t = t; ev.v = 0.3; }
+    }
+    if (ev.kind >= 0) { ev.x = sx + dx * ev.t; ev.y = sy + dy * ev.t; }
+  }
+
+  // ---- readings: a ring buffer in time order, so the live ones sit between tail and head ----
+  const N = 30000;
+  const px = new Float32Array(N), py = new Float32Array(N), pt = new Float64Array(N), pv = new Float32Array(N), kind = new Uint8Array(N);
+  let head = 0, tail = 0;
+  function push(x, y, t, v, k) { px[head] = x; py[head] = y; pt[head] = t; pv[head] = v; kind[head] = k; head = (head + 1) % N; if (head === tail) tail = (tail + 1) % N; }
+  const EN = 12000, ex = new Float32Array(EN), ey = new Float32Array(EN), et = new Float64Array(EN);   // the easter egg's own, longer-lived readings
+  let eHead = 0, eTail = 0;
+  function pushEgg(x, y, t) { ex[eHead] = x; ey[eHead] = y; et[eHead] = t; eHead = (eHead + 1) % EN; if (eHead === eTail) eTail = (eTail + 1) % EN; }
 
   // ---- the rover ----
-  const rover = { x: 0, y: 0, vx: 0, vy: 0, heading: 0, u: 0, manual: false, lastInput: -1e9 };
-  if (showRoute) { window.lidarRover = rover; window.lidarRoute = () => route; }   // debug hooks
+  const rover = { x: 0, y: 0, vx: 0, vy: 0, heading: Math.PI / 2, manual: false, lastInput: -1e9 };
+  let goalI = 0, route = null, routeI = 0, replanT = 0;
   const keys = new Set();
   const stick = { x: 0, y: 0, on: false };   // thumbstick vector, unit-ish, for touch driving
   let scrollCarry = 0;                        // sub-pixel remainder of the page-follow scroll
   let armed = false;   // arrow keys only steer after a click on the block, so they do not stop the page scrolling
-  // the route is followed as a smooth closed spline; u counts route segments
-  const pathPoint = u => {
-    const n = route.length; if (!n || !isFinite(u)) return [cx, cy];
-    const f = Math.floor(u), i = ((f % n) + n) % n, t = u - f;   // wraps: the route is a closed loop
-    const p0 = route[(i - 1 + n) % n], p1 = route[i], p2 = route[(i + 1) % n], p3 = route[(i + 2) % n];
-    const cr = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
-    return [cr(p0[0], p1[0], p2[0], p3[0]), cr(p0[1], p1[1], p2[1], p3[1])];
-  };
-
-  function nearestU(x, y) {
-    let best = 0, bd = Infinity;
-    for (let u = 0; u < route.length; u += 0.1) { const [px, py] = pathPoint(u); const d = (px - x) ** 2 + (py - y) ** 2; if (d < bd) { bd = d; best = u; } }
-    return best;
-  }
+  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  const nextGoal = i => i + 1 < goals.length ? i + 1 : openN;
+  if (showRoute) { window.lidarRover = rover; window.lidarGoals = () => goals; window.lidarPlan = () => route; }
 
   function keepOutOfNodes() {
-    for (const [nx, ny] of nodeList) {
-      const dx = rover.x - nx, dy = rover.y - ny, d = Math.hypot(dx, dy) || 1e-6, keep = nodeR + ROVER.r + 2;
-      if (d < keep) { rover.x = nx + dx / d * keep; rover.y = ny + dy / d * keep; }
+    for (const q of nodes) {
+      const dx = rover.x - q.x, dy = rover.y - q.y, d = Math.hypot(dx, dy) || 1e-6, keep = R + ROVER.r + 2;
+      if (d < keep) { rover.x = q.x + dx / d * keep; rover.y = q.y + dy / d * keep; }
     }
     rover.x = Math.min(page.x1 - ROVER.r, Math.max(page.x0 + ROVER.r, rover.x));
     rover.y = Math.min(page.y1 - ROVER.r, Math.max(page.y0 + ROVER.r, rover.y));
   }
 
-  function driveRover(dt, now) {
+  function driveRover(dt) {
     const fwd = (keys.has('w') || keys.has('arrowup')) - (keys.has('s') || keys.has('arrowdown'));
     const turn = (keys.has('d') || keys.has('arrowright')) - (keys.has('a') || keys.has('arrowleft'));
-    if (fwd || turn || stick.on) { rover.lastInput = now; if (!rover.manual) rover.manual = true; }
-    if (rover.manual && now - rover.lastInput > 4000) { rover.manual = false; rover.u = nearestU(rover.x, rover.y); }
+    if (fwd || turn || stick.on) { rover.lastInput = simT; rover.manual = true; }
+    if (rover.manual && simT - rover.lastInput > 4) {
+      // hands off for four seconds: carry on with the tour from the goal after the nearest one
+      rover.manual = false;
+      let best = openN, bd = Infinity;
+      for (let i = openN; i < goals.length; i++) { const d = Math.hypot(goals[i][0] - rover.x, goals[i][1] - rover.y); if (d < bd) { bd = d; best = i; } }
+      goalI = nextGoal(best); route = null;
+    }
     if (rover.manual) {
-      // hand-driven: turn on the spot or on the move, and roll forwards or back
-      let sp = fwd * ROVER.speed * 1.5;
+      let sp = fwd * SPEED * 1.5;
       rover.heading += turn * 2.6 * dt;
       if (stick.on) {   // thumbstick: swing towards the direction of the thumb, speed from how far it is pushed
         const mag = Math.min(1, Math.hypot(stick.x, stick.y));
         if (mag > 0.15) {
-          let dh = Math.atan2(stick.y, stick.x) - rover.heading;
-          while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
+          const dh = wrap(Math.atan2(stick.y, stick.x) - rover.heading);
           rover.heading += Math.max(-3.2 * dt, Math.min(3.2 * dt, dh));
-          sp = ROVER.speed * 1.5 * mag * Math.max(0.25, Math.cos(dh));
+          sp = SPEED * 1.5 * mag * Math.max(0.25, Math.cos(dh));
         }
       }
       const k = 1 - Math.exp(-dt * 6);
@@ -325,8 +397,7 @@
       rover.vy += (Math.sin(rover.heading) * sp - rover.vy) * k;
       rover.x += rover.vx * dt; rover.y += rover.vy * dt;
       keepOutOfNodes();
-      // keep a hand-driven rover in view: scroll the page along with it
-      if (fwd || turn || stick.on) {
+      if (fwd || turn || stick.on) {   // keep a hand-driven rover in view: scroll the page along with it
         const vy = rover.y - view.y0, m = 90;
         scrollCarry += vy < m ? vy - m : vy > VH - m ? vy - (VH - m) : 0;
         const whole = Math.trunc(scrollCarry);   // whole pixels only: fractional scrolls round unevenly and stutter
@@ -334,162 +405,227 @@
       }
       return;
     }
-    // pure pursuit: first slide u forward to wherever on the route is nearest the rover, so the
-    // aim point can never fall behind it (that is what made it spin round at corners)
-    const dist = u => { const [x, y] = pathPoint(u); return Math.hypot(x - rover.x, y - rover.y); };
-    let bestU = rover.u, bestD = dist(rover.u);
-    for (let du = 0.1; du <= 6; du += 0.1) { const d = dist(rover.u + du); if (d < bestD) { bestD = d; bestU = rover.u + du; } }
-    rover.u = ((bestU % route.length) + route.length) % route.length;
-    // then aim at the first point about 36 px further along
-    const ahead = u0 => { let u = u0; for (let i = 0; i < 150; i++) { if (dist(u) >= 36) break; u += 0.1; } return pathPoint(u); };
-    let [tx, ty] = ahead(rover.u);
-    let ax = tx - rover.x, ay = ty - rover.y;
-    let l = Math.hypot(ax, ay) || 1;
-    if (l > 90) { rover.u = nearestU(rover.x, rover.y); [tx, ty] = ahead(rover.u); ax = tx - rover.x; ay = ty - rover.y; l = Math.hypot(ax, ay) || 1; }
-    const k = 1 - Math.exp(-dt * 8);
-    const sp = ROVER.speed * (l > 60 ? 1.6 : 1);   // hurry only when it is far from the route (coming home)
-    rover.vx += (ax / l * sp - rover.vx) * k;
-    rover.vy += (ay / l * sp - rover.vy) * k;
+    // autopilot: take up the next goal just before arriving, and replan once a second from wherever it is
+    const g = goals[goalI];
+    if (Math.hypot(g[0] - rover.x, g[1] - rover.y) < 42 * sc) { goalI = nextGoal(goalI); route = null; }
+    replanT -= dt;
+    if (!route || replanT <= 0) { route = plan(goals[goalI]) || route; routeI = 0; replanT = 1; }
+    if (!route) return;
+    let best = routeI, bd = Infinity;
+    for (let i = routeI; i < Math.min(route.length, routeI + 60); i++) { const d = Math.hypot(route[i][0] - rover.x, route[i][1] - rover.y); if (d < bd) { bd = d; best = i; } }
+    routeI = best;
+    // regulated pure pursuit: steer along the arc to a point about 30 px ahead, slower when that arc is tight
+    const tgt = route[Math.min(route.length - 1, routeI + Math.round(15 * sc))];
+    const Ld = Math.max(8 * sc, Math.hypot(tgt[0] - rover.x, tgt[1] - rover.y));
+    const alpha = wrap(Math.atan2(tgt[1] - rover.y, tgt[0] - rover.x) - rover.heading);
+    const kappa = 2 * Math.sin(alpha) / Ld;
+    const off = rover.y > H || rover.y < 0 || rover.x < 0 || rover.x > W;   // hurry only when coming home from off the block
+    const v = off ? SPEED * 1.6 : Math.max(SPEED * 0.28, SPEED * Math.min(1, 1 / (Math.abs(kappa) * 44 * sc + 1e-9)));
+    rover.heading = wrap(rover.heading + Math.max(-1.6, Math.min(1.6, v * kappa)) * dt);
+    rover.vx = Math.cos(rover.heading) * v; rover.vy = Math.sin(rover.heading) * v;
     rover.x += rover.vx * dt; rover.y += rover.vy * dt;
-    const target = Math.atan2(rover.vy, rover.vx);
-    let dh = target - rover.heading;
-    while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
-    rover.heading += dh * (1 - Math.exp(-dt * 10));
     keepOutOfNodes();
   }
 
-  // ---- points ----
-  const N = 40000;
-  const px = new Float32Array(N), py = new Float32Array(N), pt = new Float32Array(N);
-  const kind = new Uint8Array(N);        // 0 node, 1 cursor, 2 wire, 3 the hidden message
-  let head = 0, tail = 0;                // readings are pushed in time order, so the live ones sit between tail and head
-  const REV = 1900;                      // ms per revolution of the lidar
-  const LIFE = REV * 2.2;                // a reading outlives a revolution, then fades smoothly to nothing
-  let RAYS = 8;                          // rays per frame; scales with the block's width so far-off nodes still get dense returns
-  let spin = 0, angle = 0, last = performance.now(), beamEnd = [0, 0];   // spin: the head's angle on the rover; angle: in the world
-
-  function push(x, y, k, now) { px[head] = x; py[head] = y; pt[head] = now; kind[head] = k; head = (head + 1) % N; if (head === tail) tail = (tail + 1) % N; }
-
-  function cast(sx, sy, a, now) {
-    const dx = Math.cos(a), dy = Math.sin(a);
-    let onWire = false, lastWire = -1e9, wireStart = 0, inside = solid(sx, sy);
-    // the lidar's range is the width of the block, the same as the drawn beam: nothing further away, like a
-    // cursor far down the page, gets a reading (and the range doubles as a hard stop so nothing can hang the page)
-    const maxT = Math.min(W, (page.x1 - page.x0) + (page.y1 - page.y0));
-    for (let t = ROVER.r; t < maxT; t += 1) {
-      const x = sx + dx * t, y = sy + dy * t;
-      if (!inPage(x, y)) return [x, y];
-      if (cursor.on && inCursor(x, y)) { push(x, y, 1, now); return [x, y]; }
-      if (inEgg(x, y) && (t & 1) === 0) push(x, y, 3, now);   // every other pixel inside a letter stroke, so the words fill in solid
-      const sN = solid(x, y);
-      if (sN && !inside) { push(x + dx * (Math.random() - .5) * 1.6, y + dy * (Math.random() - .5) * 1.6, 0, now); return [x, y]; }
-      inside = sN;
-      const w = wire(x, y);
-      if (w && !onWire) { wireStart = t; if (Math.random() < 0.45) { push(x + dx * (Math.random() - .5) * 2, y + dy * (Math.random() - .5) * 2, 2, now); lastWire = t; } }
-      else if (w && t - wireStart >= 8 && t - lastWire >= 12 && Math.random() < 0.3) { push(x + dx * (Math.random() - .5) * 2, y + dy * (Math.random() - .5) * 2, 2, now); lastWire = t; }
-      onWire = w;
-    }
-    return [sx + dx * maxT, sy + dy * maxT];
+  // ---- one step of the simulation ----
+  let simT = 0, spinT = 0, spin = 0, beamCarry = 0, mapCarry = 0, beamCount = 0, beamEnd = null;
+  const particles = Array.from({ length: 36 }, () => ({ dx: gauss() * 3, dy: gauss() * 3, dh: gauss() * 0.06 }));
+  function period() {   // seconds per turn of the head: slow at first, then up to 10 Hz
+    const t = spinT - HOLD;
+    if (t <= 0) return SLOW;
+    if (t >= RAMP) return FAST;
+    const u = t / RAMP;
+    return SLOW * Math.pow(FAST / SLOW, u * u * (3 - 2 * u));
   }
-
-  function step(now) {
-    const dt = Math.max(0, Math.min(60, now - last)) / 1000; last = now;
+  function step(dt) {
     syncFrame();
     eggNear = egg.data !== null && Math.abs(rover.y - (egg.y + egg.h / 2)) < VH * 0.85 && Math.abs(rover.x - (egg.x + egg.w / 2)) < VW;
-    driveRover(dt, now);
-    if (!isFinite(rover.x) || !isFinite(rover.y) || !isFinite(rover.heading)) {
-      const [x, y] = pathPoint(rover.u); rover.x = x; rover.y = y; rover.vx = rover.vy = 0; rover.heading = 0;
+    const x0 = rover.x, y0 = rover.y, h0 = rover.heading;
+    driveRover(dt);
+    if (!isFinite(rover.x) || !isFinite(rover.y) || !isFinite(rover.heading)) { rover.x = x0; rover.y = y0; rover.heading = 0; rover.vx = rover.vy = 0; route = null; }
+    const dh = wrap(rover.heading - h0);
+    spinT += dt;
+    const P = period(), rate = BEAMS / P, full = P <= FAST * 1.001;
+    beamCarry += dt * rate;
+    const n = Math.min(4000, Math.floor(beamCarry)); beamCarry -= Math.floor(beamCarry);
+    const spin0 = spin;
+    for (let k = 0; k < n; k++) {             // each reading is taken from where the rover is at that instant
+      const f = (k + 1) / n, x = x0 + (rover.x - x0) * f, y = y0 + (rover.y - y0) * f, h = h0 + dh * f;
+      spin = (spin + STEP) % (Math.PI * 2);
+      const a = h + spin, time = simT + dt * f;
+      sense(x, y, a, rate);
+      if (ev.kind >= 0) push(ev.x, ev.y, time, ev.v, ev.kind);
+      if (eggNear && (++eggCount % 24) === 0) eggRay(x, y, Math.cos(a), Math.sin(a), ev.kind >= 0 ? ev.t : RANGE, time);
+      if (full && (beamCount++ & 1) === 0) mapBeam(x, y, a, ev.kind >= 0 && ev.kind !== 1, ev.t);
+      if (k === n - 1) beamEnd = { x, y, a, t: ev.kind >= 0 ? ev.t : RANGE };
     }
-    const da = (Math.PI * 2) * (dt * 1000 / REV);
-    for (let k = 0; k < RAYS; k++) beamEnd = cast(rover.x, rover.y, rover.heading + spin + (k / RAYS) * da, now);
-    if (Math.random() < 1.2 * dt) {   // the odd stray return: about one a second, whatever the screen size or frame rate
-      const a = rover.heading + spin + Math.random() * da, t = ROVER.r + Math.random() * Math.min(W, H) * 0.4;
-      push(rover.x + Math.cos(a) * t, rover.y + Math.sin(a) * t, 2, now);
+    if (!full) {       // the sensor keeps sampling at full rate while its head turns slowly, so the map fills in right behind the beam
+      mapCarry += dt * MAP_RATE;
+      const m = Math.floor(mapCarry); mapCarry -= m;
+      for (let j = 0; j < m; j++) {
+        const f = (j + 1) / m, x = x0 + (rover.x - x0) * f, y = y0 + (rover.y - y0) * f;
+        const a = h0 + dh * f + spin0 + n * STEP * f;
+        sense(x, y, a, 16000);
+        mapBeam(x, y, a, ev.kind >= 0 && ev.kind !== 1, ev.t);
+      }
     }
-    spin = (spin + da) % (Math.PI * 2);
-    angle = rover.heading + spin;   // the head is mounted on the rover, so the beam turns with it
+    simT += dt;
+    const fade = Math.exp(-dt / 32);         // the map forgets in about half a minute
+    for (let i = 0; i < lo.length; i++) lo[i] *= fade;
+    for (const p of particles) { p.dx = p.dx * 0.97 + gauss() * 0.35; p.dy = p.dy * 0.97 + gauss() * 0.35; p.dh = p.dh * 0.97 + gauss() * 0.01; }
   }
 
-  function draw(now) {
+  // ---- drawing ----
+  const col = {};
+  const hex = h => { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const v = parseInt(h, 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; };
+  function readColours() {
+    const cs = getComputedStyle(document.documentElement);
+    col.fg = cs.getPropertyValue('--fg').trim() || '#111'; col.accent = cs.getPropertyValue('--accent').trim() || '#0c869b'; col.muted = cs.getPropertyValue('--muted').trim() || '#737373';
+    col.fgRGB = hex(col.fg); col.accRGB = hex(col.accent);
+    col.acc0 = `rgba(${col.accRGB.join(',')},0)`;
+    col.dark = (col.fgRGB[0] + col.fgRGB[1] + col.fgRGB[2]) > 382;
+  }
+  let mapDrawnAt = -1;
+  function drawMap() {
+    if (simT - mapDrawnAt >= 0.1 || mapDrawnAt < 0) {   // the map changes slowly: rebuild its image ten times a second
+      mapDrawnAt = simT;
+      const dw = imgW.data, df = imgF.data, [r, g, b] = col.fgRGB, floor = col.dark ? 15 : 12;
+      for (let i = 0; i < lo.length; i++) {
+        const v = lo[i], o = i * 4;
+        const e = edgeFade[i];
+        df[o] = r; df[o + 1] = g; df[o + 2] = b; df[o + 3] = v < -0.4 ? Math.min(1, (-v - 0.4) / 1.8) * floor * e : 0;       // seen floor, soft
+        dw[o] = r; dw[o + 1] = g; dw[o + 2] = b; dw[o + 3] = v > 0.5 ? (0.08 + 0.26 * Math.min(1, (v - 0.5) / 2.5)) * 255 * e : 0;   // walls, crisp
+      }
+      ofc.putImageData(imgF, 0, 0); owc.putImageData(imgW, 0, 0);
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(offF, 0, 0, GW * CELL, GH * CELL);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(offW, 0, 0, GW * CELL, GH * CELL);
+    ctx.imageSmoothingEnabled = true;
+  }
+  function drawPath() {
+    if (!route || rover.manual) return;
+    ctx.strokeStyle = col.accent; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.1; ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    const s0 = Math.min(route.length - 1, routeI + Math.round(5 * sc));
+    for (let i = s0; i < route.length; i += 2) i === s0 ? ctx.moveTo(route[i][0], route[i][1]) : ctx.lineTo(route[i][0], route[i][1]);
+    ctx.stroke(); ctx.setLineDash([]);
+    const g = goals[goalI], nx = goals[nextGoal(goalI)], h = Math.atan2(nx[1] - g[1], nx[0] - g[0]), L = 13 * sc;   // the goal pose, as a planner draws it
+    ctx.save(); ctx.translate(g[0], g[1]); ctx.rotate(h);
+    ctx.globalAlpha = 0.9; ctx.fillStyle = col.accent; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(-L / 2, 0); ctx.lineTo(L / 2 - 3, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(L / 2, 0); ctx.lineTo(L / 2 - 5, -3); ctx.lineTo(L / 2 - 5, 3); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(-L / 2, 0, 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  const beamAlpha = () => { const P = period(); return P >= 0.7 ? 1 : P <= 0.22 ? 0 : (P - 0.22) / 0.48; };
+  function drawBeam() {
+    const a0 = beamAlpha();
+    if (a0 <= 0 || !beamEnd || reduced) return;
+    const hx = beamEnd.x + Math.cos(beamEnd.a) * 4 * sc, hy = beamEnd.y + Math.sin(beamEnd.a) * 4 * sc;
+    const ex = beamEnd.x + Math.cos(beamEnd.a) * beamEnd.t, ey = beamEnd.y + Math.sin(beamEnd.a) * beamEnd.t;
+    const g = ctx.createLinearGradient(hx, hy, ex, ey);
+    g.addColorStop(0, col.accent); g.addColorStop(1, col.acc0);
+    ctx.strokeStyle = g; ctx.globalAlpha = 0.5 * a0; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  // points are grouped into a dozen steps of opacity and each group is drawn as one path: thousands of
+  // separate fillRect calls, each with its own opacity, were most of the hero's cost per frame
+  const BINS = 12, binN = new Int32Array(BINS * 2), binXY = Array.from({ length: BINS * 2 }, () => new Float32Array(N * 2 / 4));
+  function binPoint(b, x, y) { const n = binN[b], arr = binXY[b]; if (n * 2 + 1 < arr.length) { arr[n * 2] = x; arr[n * 2 + 1] = y; binN[b] = n + 1; } }
+  function flushBins(offset, colour, s) {
+    ctx.fillStyle = colour;
+    for (let b = 0; b < BINS; b++) {
+      const n = binN[offset + b]; if (!n) continue;
+      const arr = binXY[offset + b];
+      ctx.globalAlpha = (b + 0.5) / BINS;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) ctx.rect(arr[i * 2] - s / 2, arr[i * 2 + 1] - s / 2, s, s);
+      ctx.fill();
+    }
+  }
+  function drawPoints() {
+    const P = period(), life = Math.max(1.5, 2.2 * P), fresh = Math.max(0.1, 0.1 * P), eggLife = 12;
+    while (tail !== head && simT - pt[tail] > life) tail = (tail + 1) % N;
+    while (eTail !== eHead && simT - et[eTail] > eggLife) eTail = (eTail + 1) % EN;
+    const vx0 = view.x0 - 2, vy0 = view.y0 - 2, vx1 = view.x1 + 2, vy1 = view.y1 + 2;   // only what is on screen
+    const s1 = 1.5 * Math.max(0.85, sc), s2 = 1.8 * Math.max(0.85, sc);
+    binN.fill(0);
+    const every = sc < 1 ? 2 : 1;   // phones draw everything smaller, so every other reading gives the same density as a laptop
+    for (let i = tail; i !== head; i = (i + 1) % N) {
+      if (every > 1 && (i & 1)) continue;
+      const x = px[i], y = py[i];
+      if (x < vx0 || x > vx1 || y < vy0 || y > vy1) continue;
+      const age = simT - pt[i];
+      let a, off = 0;
+      if (age < fresh) { a = Math.min(1, 0.25 + pv[i]) * (1 - 0.4 * age / fresh); off = BINS; }   // the newest turn, in the accent colour
+      else { const u = 1 - (age - fresh) / (life - fresh); if (u <= 0) continue; a = 0.9 * u * u * (3 - 2 * u) * pv[i]; }   // older, fading to nothing
+      const b = Math.min(BINS - 1, (a * BINS) | 0);
+      if (a * BINS >= 0.35) binPoint(off + b, x, y);
+    }
+    flushBins(0, col.fg, s1);
+    flushBins(BINS, col.accent, s2);
+    binN.fill(0);
+    for (let i = eTail; i !== eHead; i = (i + 1) % EN) {         // the message lingers, so a pass leaves it readable
+      const x = ex[i], y = ey[i];
+      if (x < vx0 || x > vx1 || y < vy0 || y > vy1) continue;
+      const u = 1 - (simT - et[i]) / eggLife, a = 0.95 * u * u * (3 - 2 * u);
+      binPoint(Math.min(BINS - 1, (a * BINS) | 0), x, y);
+    }
+    flushBins(0, col.fg, 2);
+    ctx.globalAlpha = 1;
+  }
+  function drawParticles() {   // the localiser's guesses at the rover's pose
+    ctx.strokeStyle = col.muted; ctx.lineWidth = 0.8; ctx.globalAlpha = 0.7;
+    const L = 5 * sc;
+    ctx.beginPath();
+    for (const p of particles) {
+      const x = rover.x + p.dx * sc, y = rover.y + p.dy * sc, h = rover.heading + p.dh;
+      const ex = x + Math.cos(h) * L, ey = y + Math.sin(h) * L;
+      ctx.moveTo(x, y); ctx.lineTo(ex, ey);
+      ctx.moveTo(ex, ey); ctx.lineTo(ex - Math.cos(h - 0.5) * 1.8, ey - Math.sin(h - 0.5) * 1.8);
+      ctx.moveTo(ex, ey); ctx.lineTo(ex - Math.cos(h + 0.5) * 1.8, ey - Math.sin(h + 0.5) * 1.8);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  function drawRover() {
+    // the rover, seen from above: four wheels, a body, and the lidar puck on its back
+    ctx.save();
+    ctx.translate(rover.x, rover.y); ctx.rotate(rover.heading); ctx.scale(sc, sc);
+    const L = ROVER.len / sc, Wd = ROVER.wid / sc;
+    ctx.globalAlpha = 1; ctx.fillStyle = '#111';
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) { ctx.beginPath(); ctx.roundRect(sx * L * 0.3 - 3.5, sy * (Wd / 2 + 1) - 2.5, 7, 5, 1.5); ctx.fill(); }
+    let g = ctx.createLinearGradient(0, -Wd / 2, 0, Wd / 2);
+    g.addColorStop(0, '#d9d9d6'); g.addColorStop(1, '#9a9a97');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(-L / 2, -Wd / 2, L, Wd, 4); ctx.fill();
+    ctx.fillStyle = '#5c5f63'; ctx.beginPath(); ctx.roundRect(L / 2 - 5, -Wd / 2 + 3, 3, Wd - 6, 1); ctx.fill();
+    ctx.rotate(-rover.heading);
+    g = ctx.createRadialGradient(-1.5, -1.5, 1, 0, 0, 6);
+    g.addColorStop(0, '#3a3d40'); g.addColorStop(1, '#0d0e10');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+    // the head: its window while it turns slowly, a faint blur once it is at speed
+    const a0 = reduced ? 1 : beamAlpha();
+    if (a0 > 0) { ctx.save(); ctx.rotate(rover.heading + spin); ctx.globalAlpha = a0; ctx.fillStyle = col.accent; ctx.fillRect(2.2, -1.1, 2.2, 2.2); ctx.restore(); }
+    if (a0 < 1) { ctx.strokeStyle = col.accent; ctx.globalAlpha = 0.5 * (1 - a0); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 2.4, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  function drawDebug() {
+    ctx.globalAlpha = 0.25; ctx.strokeStyle = col.fg; ctx.lineWidth = 1;
+    for (const q of nodes) { ctx.beginPath(); ctx.arc(q.x, q.y, R, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.beginPath(); for (const w of wires) { ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); } ctx.globalAlpha = 0.1; ctx.stroke();
+    ctx.font = '10px JetBrains Mono, monospace'; ctx.fillStyle = col.fg; ctx.globalAlpha = 0.8;
+    goals.forEach((g, i) => { ctx.beginPath(); ctx.arc(g[0], g[1], 2.5, 0, Math.PI * 2); ctx.fill(); ctx.fillText(String(i), g[0] + 5, g[1] - 5); });
+    ctx.globalAlpha = 1;
+  }
+  function draw() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     ctx.translate(ox, oy);   // everything below is in hero coordinates
-    const fg = cssVar('--fg', '#111');
-    const accent = cssVar('--accent', '#0c869b');
-
-    // the beam, from the lidar window on the rover's back; drawn no longer than the block is wide
-    const hx = rover.x + Math.cos(angle) * 4, hy = rover.y + Math.sin(angle) * 4;
-    if (!reduced) {
-      let ex = beamEnd[0], ey = beamEnd[1];
-      const bl = Math.hypot(ex - hx, ey - hy);
-      if (bl > W) { ex = hx + (ex - hx) * W / bl; ey = hy + (ey - hy) * W / bl; }
-      const g = ctx.createLinearGradient(hx, hy, ex, ey);
-      g.addColorStop(0, accent); g.addColorStop(1, 'rgba(12,134,155,0)');
-      ctx.strokeStyle = g; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex, ey); ctx.stroke();
-    }
-
-    // readings: nodes and cursor hits in the text colour, wires weaker
-    const vx0 = view.x0 - 2, vy0 = view.y0 - 2, vx1 = view.x1 + 2, vy1 = view.y1 + 2;   // only what is on screen
-    // drop everything that has fully faded from the tail, then draw only the live range (a few thousand, not 40,000)
-    while (tail !== head && now - pt[tail] >= LIFE * 3) tail = (tail + 1) % N;
-    const live = (head - tail + N) % N;
-    for (let pass = 0; pass < 4; pass++) {
-      ctx.fillStyle = fg;
-      const isWire = pass === 2, isEgg = pass === 3;
-      for (let j = 0; j < live; j++) {
-        const i = (tail + j) % N;
-        if (kind[i] !== pass) continue;
-        if (px[i] < vx0 || px[i] > vx1 || py[i] < vy0 || py[i] > vy1) continue;
-        const age = (now - pt[i]) / (isEgg ? LIFE * 3 : LIFE);   // the message lingers, so a sweep leaves it readable
-        if (age >= 1) continue;
-        const a = 1 - age;
-        ctx.globalAlpha = (isWire ? 0.55 : 1) * 0.95 * a * a * (3 - 2 * a);   // eases in and out, reaching zero with no edge
-        const sz = isWire ? 1 + 0.4 * a : isEgg ? 2 : 1.3 + 0.9 * a;
-        ctx.fillRect(px[i] - sz / 2, py[i] - sz / 2, sz, sz);
-      }
-    }
-
-    if (showRoute) {
-      ctx.globalAlpha = 0.35; ctx.strokeStyle = accent; ctx.lineWidth = 1.5; ctx.setLineDash([]);
-      ctx.beginPath();
-      for (let u = 0; u <= route.length; u += 0.1) { const [x, y] = pathPoint(u); u ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-      ctx.stroke();
-      ctx.fillStyle = accent; ctx.globalAlpha = 0.9;
-      route.forEach(([x, y], i) => { ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); });
-      ctx.globalAlpha = 0.25; ctx.strokeStyle = fg; ctx.lineWidth = 1;
-      for (const [x, y] of nodeList) { ctx.beginPath(); ctx.arc(x, y, nodeR, 0, Math.PI * 2); ctx.stroke(); }
-      ctx.font = '10px JetBrains Mono, monospace'; ctx.fillStyle = fg; ctx.globalAlpha = 0.7;
-      const [sx, sy] = route[0]; ctx.fillText('start', sx + 6, sy - 6);
-      ctx.globalAlpha = 1;
-    }
-
-    drawRover();
-  }
-
-  function drawRover() {
-    const accent = cssVar('--accent', '#0c869b');
-    // the rover, seen from above: four wheels, a body, and the lidar puck on its back
-    ctx.save();
-    ctx.translate(rover.x, rover.y); ctx.rotate(rover.heading);
-    const L = ROVER.len, Wd = ROVER.wid;
-    ctx.globalAlpha = 1; ctx.fillStyle = '#111';
-    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {           // wheels
-      ctx.beginPath(); ctx.roundRect(sx * L * 0.3 - 3.5, sy * (Wd / 2 + 1) - 2.5, 7, 5, 1.5); ctx.fill();
-    }
-    let g = ctx.createLinearGradient(0, -Wd / 2, 0, Wd / 2);
-    g.addColorStop(0, '#d9d9d6'); g.addColorStop(1, '#9a9a97');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.roundRect(-L / 2, -Wd / 2, L, Wd, 4); ctx.fill();   // body
-    ctx.fillStyle = '#5c5f63';
-    ctx.beginPath(); ctx.roundRect(L / 2 - 5, -Wd / 2 + 3, 3, Wd - 6, 1); ctx.fill();  // front sensor bar
-    ctx.rotate(-rover.heading);                                              // the puck spins with the beam, not the rover
-    g = ctx.createRadialGradient(-1.5, -1.5, 1, 0, 0, 6);
-    g.addColorStop(0, '#3a3d40'); g.addColorStop(1, '#0d0e10');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();  // lidar housing
-    ctx.rotate(angle);
-    ctx.fillStyle = accent; ctx.fillRect(2.5, -1.5, 3, 3);                               // its window, facing the beam
-    ctx.restore();
+    if (view.y1 > 0 && view.y0 < H) drawMap();   // the map covers the block only
+    if (showRoute) drawDebug();
+    drawPath(); drawBeam(); drawPoints(); drawParticles(); drawRover();
   }
 
   function resize() {
@@ -510,31 +646,39 @@
     const nw = Math.max(1, Math.round(r.width)), nh = Math.max(1, Math.round(r.height));
     const changed = nw !== W || nh !== H;   // only the block's own size matters to the scene (not, say, a phone's URL bar)
     W = nw; H = nh;
-    RAYS = Math.max(8, Math.min(24, Math.round(W / 100)));
     bandTop = b.top - r.top; bandH = b.height;
     cx = W / 2; cy = bandTop + bandH / 2;
     if (changed) {
-      buildScene(); pt.fill(0);
-      if (!rover.x && !rover.y) { const [x, y] = pathPoint(0); rover.x = x; rover.y = y; }
-      rover.u = nearestU(rover.x, rover.y);
+      sc = W < 600 ? 0.72 : 1;              // phones: a smaller rover and nodes, so the network fits
+      R = Math.max(9, Math.min(15, bandH * 0.05)) * (sc < 1 ? 0.75 : 1);
+      ROVER.len = 22 * sc; ROVER.wid = 15 * sc; ROVER.r = 12 * sc;
+      PX_PER_M = ROVER.len / 0.447; RANGE = 12 * PX_PER_M; MAXU = 6 * PX_PER_M; SPEED = 42 * sc;
+      const first = !goals.length;
+      buildScene(); head = tail = 0; eHead = eTail = 0; route = null;
+      if (first) { rover.x = start.x; rover.y = start.y; rover.heading = Math.PI / 2; goalI = 0; }
+      else { let best = openN, bd = Infinity; for (let i = openN; i < goals.length; i++) { const d = Math.hypot(goals[i][0] - rover.x, goals[i][1] - rover.y); if (d < bd) { bd = d; best = i; } } goalI = nextGoal(best); }
     }
     measure(); syncFrame(); placeEgg();
     if (reduced) drawStatic();
   }
 
-  // reduced motion: the network as a still map, redrawn as the page scrolls
-  let still = null;
+  // reduced motion: the network as a still outline, redrawn as the page scrolls
   function drawStatic() {
-    if (!still) { still = []; for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (solid(x, y) || wire(x, y)) still.push(x, y); }
     syncFrame();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); ctx.translate(ox, oy);
-    ctx.globalAlpha = 0.4; ctx.fillStyle = cssVar('--fg', '#111');
-    for (let i = 0; i < still.length; i += 2) ctx.fillRect(still[i], still[i + 1], 1, 1);
+    ctx.strokeStyle = col.fg; ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.14; ctx.beginPath(); for (const w of wires) { ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); } ctx.stroke();
+    ctx.globalAlpha = 0.4; for (const q of nodes) { ctx.beginPath(); ctx.arc(q.x, q.y, R, 0, Math.PI * 2); ctx.stroke(); }
     ctx.globalAlpha = 1;
     drawRover();
   }
 
-  function loop(now) { step(now); draw(now); requestAnimationFrame(loop); }
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.max(0, Math.min(0.06, (now - last) / 1000)); last = now;
+    step(dt); draw();
+    requestAnimationFrame(loop);
+  }
 
   // the cursor object follows the mouse, or a finger while it is touching the top block
   const stickEl = document.querySelector('.stick');
@@ -547,8 +691,8 @@
   if (stickEl) {   // the thumbstick: drag the knob, the rover follows; the thumb on it is not a lidar obstacle
     const knob = stickEl.querySelector('.knob');
     const move = e => {
-      const r = stickEl.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, lim = r.width / 2 - 12;
-      let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy);
+      const r = stickEl.getBoundingClientRect(), kx = r.left + r.width / 2, ky = r.top + r.height / 2, lim = r.width / 2 - 12;
+      let dx = e.clientX - kx, dy = e.clientY - ky; const d = Math.hypot(dx, dy);
       if (d > lim) { dx *= lim / d; dy *= lim / d; }
       stick.x = dx / lim; stick.y = dy / lim;
       knob.style.transform = `translate(${dx}px, ${dy}px)`;
@@ -584,16 +728,17 @@
   const settle = () => { measure(); placeEgg(); if (pageMode) resize(); };
   window.addEventListener('load', settle);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
+  document.addEventListener('themechange', () => { readColours(); mapDrawnAt = -1; if (reduced) drawStatic(); });
 
   // driving: WASD always; arrow keys once the block has been clicked (Escape hands them back)
-  const keyName = e => e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
+  const keyName = e => e.key.toLowerCase();
   window.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = keyName(e);
     if (k === 'escape') { armed = false; keys.clear(); return; }
     const isArrow = k.startsWith('arrow');
     if (isArrow && !armed) return;
-    if ('wasd'.includes(k) && k.length === 1 || isArrow) {
+    if ((k.length === 1 && 'wasd'.includes(k)) || isArrow) {
       if (document.activeElement && /^(input|textarea|select)$/i.test(document.activeElement.tagName)) return;
       keys.add(k); if (isArrow) e.preventDefault();
       hero.classList.add('driven');
@@ -604,10 +749,22 @@
   hero.addEventListener('pointerdown', () => { armed = true; });
   document.addEventListener('pointerdown', e => { if (!hero.contains(e.target)) armed = false; });
 
+  readColours();
   resize();
+  if (showRoute) {   // debug: run the autopilot for a while and report how it drove
+    window.lidarSim = sec => {
+      let worst = Infinity, maxW = 0, prev = rover.heading;
+      for (let t = 0; t < sec; t += 1 / 60) {
+        step(1 / 60);
+        for (const q of nodes) worst = Math.min(worst, Math.hypot(q.x - rover.x, q.y - rover.y) - R);
+        maxW = Math.max(maxW, Math.abs(wrap(rover.heading - prev)) * 60); prev = rover.heading;
+      }
+      return { worstClearance: +worst.toFixed(1), maxTurnRate: +maxW.toFixed(2), goal: goalI };
+    };
+  }
   if (reduced) {
+    spinT = HOLD + RAMP;
     window.addEventListener('scroll', drawStatic, { passive: true });
-    document.addEventListener('themechange', drawStatic);
   } else {
     requestAnimationFrame(loop);
   }
