@@ -14,8 +14,7 @@ What it checks:
   - external links open in a new tab with rel="noopener"
   - canonical and og:url name the page's own address, og:image exists
   - sitemap.xml lists every page (except 404) and nothing that doesn't exist
-  - prev/next pagers chain both ways, and the "Next" link at the foot matches the pager
-  - a pager's title attribute matches the target page's heading
+  - each project page has one previous/next navigation, it chains both ways, and each link's title matches the page it goes to
   - a project card shows the same title, text and label wherever it appears (home page and BSc page)
   - the year on a card matches a year on the project page it links to
 """
@@ -127,37 +126,33 @@ if sitemap.exists():
 else:
     problems.append('sitemap.xml is missing')
 
-# ---- pagers and the "Next" link at the foot ----
+# ---- previous/next navigation at the foot of project pages ----
 def heading(p):
     m = re.search(r'<h1[^>]*>(.*?)</h1>', source.get(p, ''), re.S)
     return text(m.group(1)) if m else None
 
 pager = {}
 for p, s in source.items():
-    nav = re.search(r'<nav class="pager[^"]*"[^>]*>(.*?)</nav>', s, re.S)
-    if not nav:
+    navs = re.findall(r'<nav class="pager"[^>]*>(.*?)</nav>', s, re.S)
+    if len(navs) > 1:
+        problem(rel(p), f'{len(navs)} previous/next navigations on one page')
+    if re.search(r'>(?:← )?(?:prev|next)(?: →)?</a>', s):
+        problem(rel(p), 'still has an old top-of-page prev/next link')
+    if not navs:
         continue
-    links = dict((d, (href, title)) for href, title, d in re.findall(r'<a href="([^"]+)" title="([^"]+)">(?:← )?(prev|next)(?: →)?</a>', nav.group(1)))
+    links = {d: (href, text(title)) for d, href, title in re.findall(r'<a class="(prev|next)" href="([^"]+)">.*?<span class="title">(.*?)</span></a>', navs[0], re.S)}
     pager[p] = links
     for d, (href, title) in links.items():
-        target = (p.parent / href).resolve()
-        h = heading(target)
-        if h is not None and html.unescape(title) != h:
-            problem(rel(p), f'{d} link title "{html.unescape(title)}" does not match the heading of {href} ("{h}")')
-    foot = re.search(r'<a class="next" href="([^"]+)">.*?<span class="title">(.*?)<span', s, re.S)
-    if 'next' in links:
-        if not foot:
-            problem(rel(p), 'has a next page but no "Next" link at the foot')
-        elif foot.group(1) != links['next'][0] or text(foot.group(2)) != html.unescape(links['next'][1]):
-            problem(rel(p), f'"Next" link at the foot ({foot.group(1)}) does not match the pager ({links["next"][0]})')
-    elif foot:
-        problem(rel(p), '"Next" link at the foot but no next page in the pager')
+        h = heading((p.parent / href).resolve())
+        if h is not None and title != h:
+            problem(rel(p), f'{d} link reads "{title}" but {href} is titled "{h}"')
 for p, links in pager.items():
-    if 'next' in links:
-        q = (p.parent / links['next'][0]).resolve()
-        back = pager.get(q, {}).get('prev')
-        if not back or (q.parent / back[0]).resolve() != p.resolve():
-            problem(rel(p), f'next is {links["next"][0]}, but that page\'s prev does not point back here')
+    for d, back in (('next', 'prev'), ('prev', 'next')):
+        if d in links:
+            q = (p.parent / links[d][0]).resolve()
+            other = pager.get(q, {}).get(back)
+            if not other or (q.parent / other[0]).resolve() != p.resolve():
+                problem(rel(p), f'{d} is {links[d][0]}, but that page\'s {back} does not point back here')
 
 # ---- cards say the same thing everywhere, and their year matches the page ----
 cards = {}

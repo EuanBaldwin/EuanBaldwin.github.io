@@ -308,9 +308,15 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
 /* Project pages: prev/next, footer at the bottom */
 body { min-height: 100vh; display: flex; flex-direction: column; }
 .foot { margin-top: auto; }
-.pager { display: flex; gap: 1.25rem; margin: 0; padding: 0; }
-.pager a { color: var(--muted); }
-.pager a:hover { color: var(--accent); }
+/* Previous and next project, at the foot of a project page */
+.project .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem var(--gutter); margin-top: clamp(48px, 10vh, 120px); padding-top: 1.1rem; border-top: 1px solid var(--rule); }
+.project .pager a { display: block; }
+.project .pager > span:empty { display: none; }
+.project .pager .next { text-align: right; grid-column: 2; }
+.project .pager .mono { display: block; margin-bottom: .35rem; }
+.project .pager .title { display: block; font-size: clamp(16px, 1.4vw, 20px); font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; text-wrap: balance; transition: color .15s; }
+.project .pager a:hover .title { color: var(--accent); }
+@media (max-width: 600px) { .project .pager { grid-template-columns: 1fr; } .project .pager .next { grid-column: 1; } }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
@@ -327,8 +333,3 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
   .cards .card.edu p, .cards .card.edu .when { grid-column: 2; }
 }
 
-/* Next project, at the foot of a project page */
-.project .next { display: block; max-width: 40rem; margin-top: clamp(48px, 10vh, 120px); padding-top: 1.1rem; border-top: 1px solid var(--rule); }
-.project .next .mono { display: block; margin-bottom: .35rem; }
-.project .next .title { font-size: clamp(18px, 1.6vw, 22px); font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; transition: color .15s; }
-.project .next:hover .title { color: var(--accent); }

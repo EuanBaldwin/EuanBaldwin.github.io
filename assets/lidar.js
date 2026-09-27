@@ -12,9 +12,10 @@
 // the lidar has seen and forgets it again after about half a minute.
 //
 // The rover works through a fixed list of goals that sweep back and forth across the network.
-// For each one it plans the shortest route on a costmap that keeps it clear of the nodes (A*,
-// straightened across open space, corners rounded), and follows it with regulated pure pursuit,
-// which slows it on tight curves so it sweeps round them. The dashed line is that plan.
+// Each goal is a pose (the arrow). For each one it plans the shortest route on a costmap that keeps
+// it clear of the nodes (A*, straightened across open space, corners rounded, arriving lined up with
+// the arrow), follows it with regulated pure pursuit, which slows it on tight curves so it sweeps
+// round them, then turns on the spot to face the arrow before moving on. The dashed line is that plan.
 //
 // The canvas is pinned to the viewport (or, on touch devices, covers the whole page) and
 // everything is kept in the hero's own coordinates, so the rover can also be driven off the
@@ -158,7 +159,19 @@
     return true;
   }
   const chaikinOpen = p => { if (p.length < 3) return p; const o = [p[0]]; for (let i = 0; i < p.length - 1; i++) { const a = p[i], b = p[i + 1]; o.push([a[0] * .75 + b[0] * .25, a[1] * .75 + b[1] * .25], [a[0] * .25 + b[0] * .75, a[1] * .25 + b[1] * .75]); } o.push(p[p.length - 1]); return o; };
-  function plan(goal) {
+  // each goal is a pose: a point and a heading (the arrow drawn on it). The heading follows the smooth curve through
+  // the goal, halfway between the way in and the way out, so the turn is shared between arriving and leaving
+  let yawOf = [];
+  function tangentYaw(i) {
+    const g = goals[i], n = goals[nextGoal(i)], p = cameFrom >= 0 ? goals[cameFrom] : [start.x, start.y];   // where it actually came from
+    const ax = g[0] - p[0], ay = g[1] - p[1], bx = n[0] - g[0], by = n[1] - g[1], la = Math.hypot(ax, ay) || 1, lb = Math.hypot(bx, by) || 1;
+    const tx = ax / la + bx / lb, ty = ay / la + by / lb;
+    return Math.hypot(tx, ty) < 0.2 ? Math.atan2(by, bx) : Math.atan2(ty, tx);
+  }
+  const goalYaw = i => yawOf[i] ?? tangentYaw(i);
+  function plan(i) {
+    const goal = goals[i];
+    let yaw = goalYaw(i);
     let fx = rover.x, fy = rover.y;
     const pre = [[fx, fy]];
     // off the block (hand-driven down the page), head straight back to the nearest free spot on it first
@@ -169,9 +182,16 @@
     // start a little ahead along the heading, so the plan leaves the way the rover is already facing
     const lx = fx + Math.cos(rover.heading) * 18 * sc, ly = fy + Math.sin(rover.heading) * 18 * sc;
     const lead = pre.length === 1 && costAt(lx, ly) !== Infinity && lineOK([fx, fy], [lx, ly], 1e9);
-    const raw = astar(lead ? lx : fx, lead ? ly : fy, goal[0], goal[1]);
+    // arrive lined up with the goal's arrow: route to a point just behind the goal on that line, then straight in
+    let ap = null;
+    for (const d of [40, 28, 16]) {
+      const q = [goal[0] - Math.cos(yaw) * d * sc, goal[1] - Math.sin(yaw) * d * sc];
+      if (costAt(q[0], q[1]) !== Infinity && lineOK(q, goal, 1e9)) { ap = q; break; }
+    }
+    const approach = !!ap, end = approach ? ap : goal;
+    const raw = astar(lead ? lx : fx, lead ? ly : fy, end[0], end[1]);
     if (!raw) return null;
-    raw[raw.length - 1] = [goal[0], goal[1]];
+    raw[raw.length - 1] = [end[0], end[1]];
     const pulled = [raw[0]];                        // straighten: jump to the furthest point in clear sight through cheap space
     for (let i = 0; i < raw.length - 1;) {
       let j = raw.length - 1;
@@ -179,6 +199,12 @@
       pulled.push(raw[j]); i = j;
     }
     let pts = pre.concat(lead ? pulled : pulled.slice(1));
+    if (approach) pts.push([goal[0], goal[1]]);
+    else if (yawOf[i] === undefined && pts.length > 1) {
+      // no room to come in along that heading (a goal at the edge of the block): take the heading it can arrive on
+      const a = pts[pts.length - 2]; yaw = yawOf[i] = Math.atan2(goal[1] - a[1], goal[0] - a[0]);
+    }
+    if (yawOf[i] === undefined) yawOf[i] = yaw;   // keep this visit's heading steady across replans
     for (let k = 0; k < 3; k++) { const s = chaikinOpen(pts); if (s.every(p => costAt(p[0], p[1]) !== Infinity || p === s[0])) pts = s; else break; }
     const outp = [pts[0]];
     for (let i = 1; i < pts.length; i++) {
@@ -186,6 +212,10 @@
       if (L < 2) continue;
       const m = Math.floor(L / 2); for (let s = 1; s <= m; s++) outp.push([a[0] + (b[0] - a[0]) * s / m, a[1] + (b[1] - a[1]) * s / m]);
     }
+    // carry on a little past the goal along its arrow: the controller aims ahead of itself, so on the last
+    // stretch it then steers along the arrow instead of cutting in to the goal point (this part isn't drawn)
+    outp.goalAt = outp.length - 1;
+    for (let d = 2; d <= 30 * sc; d += 2) outp.push([goal[0] + Math.cos(yaw) * d, goal[1] + Math.sin(yaw) * d]);
     return outp;
   }
 
@@ -353,7 +383,7 @@
 
   // ---- the rover ----
   const rover = { x: 0, y: 0, vx: 0, vy: 0, heading: Math.PI / 2, manual: false, lastInput: -1e9 };
-  let goalI = 0, route = null, routeI = 0, replanT = 0;
+  let goalI = 0, route = null, routeI = 0, replanT = 0, aligning = false, cameFrom = -1;
   const keys = new Set();
   const stick = { x: 0, y: 0, on: false };   // thumbstick vector, unit-ish, for touch driving
   let scrollCarry = 0;                        // sub-pixel remainder of the page-follow scroll
@@ -380,7 +410,7 @@
       rover.manual = false;
       let best = openN, bd = Infinity;
       for (let i = openN; i < goals.length; i++) { const d = Math.hypot(goals[i][0] - rover.x, goals[i][1] - rover.y); if (d < bd) { bd = d; best = i; } }
-      goalI = nextGoal(best); route = null;
+      goalI = nextGoal(best); cameFrom = best; route = null; aligning = false; yawOf = [];
     }
     if (rover.manual) {
       let sp = fwd * SPEED * 1.5;
@@ -406,15 +436,23 @@
       }
       return;
     }
-    // autopilot: take up the next goal just before arriving, and replan once a second from wherever it is
-    const g = goals[goalI];
-    if (Math.hypot(g[0] - rover.x, g[1] - rover.y) < 42 * sc) { goalI = nextGoal(goalI); route = null; }
+    // autopilot: drive to the goal, turn on the spot to face its arrow, then take the next one. On the way it replans
+    // once a second from wherever it is (but not in the last stretch, where a fresh plan could double back)
+    const g = goals[goalI], dG = Math.hypot(g[0] - rover.x, g[1] - rover.y);
+    if (aligning) {
+      const err = wrap(goalYaw(goalI) - rover.heading);
+      rover.heading = wrap(rover.heading + Math.max(-1, Math.min(1, err * 3)) * dt);
+      rover.vx = rover.vy = 0;
+      if (Math.abs(err) < 0.03) { aligning = false; delete yawOf[goalI]; cameFrom = goalI; goalI = nextGoal(goalI); route = null; }
+      return;
+    }
     replanT -= dt;
-    if (!route || replanT <= 0) { route = plan(goals[goalI]) || route; routeI = 0; replanT = 1; }
+    if (!route || (replanT <= 0 && dG > 50 * sc)) { route = plan(goalI) || route; routeI = 0; replanT = 1; }
     if (!route) return;
     let best = routeI, bd = Infinity;
     for (let i = routeI; i < Math.min(route.length, routeI + 60); i++) { const d = Math.hypot(route[i][0] - rover.x, route[i][1] - rover.y); if (d < bd) { bd = d; best = i; } }
     routeI = best;
+    if (dG < 4 * sc || (routeI >= route.goalAt - 1 && dG < 16 * sc)) { aligning = true; rover.vx = rover.vy = 0; return; }
     // regulated pure pursuit: steer along the arc to a point ahead, slower when that arc is tight. The look-ahead
     // scales with speed (about 30 px at full speed), so on a slow, tight turn it aims close and doesn't cut the corner
     const look = Math.max(Math.round(10 * sc), Math.min(Math.round(15 * sc), Math.round(Math.hypot(rover.vx, rover.vy) * 0.7 / 2)));
@@ -423,7 +461,8 @@
     const alpha = wrap(Math.atan2(tgt[1] - rover.y, tgt[0] - rover.x) - rover.heading);
     const kappa = 2 * Math.sin(alpha) / Ld;
     const off = rover.y > H || rover.y < 0 || rover.x < 0 || rover.x > W;   // hurry only when coming home from off the block
-    const v = off ? SPEED * 1.6 : Math.max(SPEED * 0.28, SPEED * Math.min(1, 1 / (Math.abs(kappa) * 44 * sc + 1e-9)));
+    let v = off ? SPEED * 1.6 : Math.max(SPEED * 0.28, SPEED * Math.min(1, 1 / (Math.abs(kappa) * 44 * sc + 1e-9)));
+    if (!off && dG < 40 * sc) v = Math.max(SPEED * 0.18, v * dG / (40 * sc));   // ease into the goal
     rover.heading = wrap(rover.heading + Math.max(-1.6, Math.min(1.6, v * kappa)) * dt);
     rover.vx = Math.cos(rover.heading) * v; rover.vy = Math.sin(rover.heading) * v;
     rover.x += rover.vx * dt; rover.y += rover.vy * dt;
@@ -511,10 +550,10 @@
     if (!route || rover.manual) return;
     ctx.strokeStyle = col.accent; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.1; ctx.setLineDash([3, 3]);
     ctx.beginPath();
-    const s0 = Math.min(route.length - 1, routeI + Math.round(5 * sc));
-    for (let i = s0; i < route.length; i += 2) i === s0 ? ctx.moveTo(route[i][0], route[i][1]) : ctx.lineTo(route[i][0], route[i][1]);
+    const last = route.goalAt ?? route.length - 1, s0 = Math.min(last, routeI + Math.round(5 * sc));
+    for (let i = s0; i <= last; i += 2) i === s0 ? ctx.moveTo(route[i][0], route[i][1]) : ctx.lineTo(route[i][0], route[i][1]);
     ctx.stroke(); ctx.setLineDash([]);
-    const g = goals[goalI], nx = goals[nextGoal(goalI)], h = Math.atan2(nx[1] - g[1], nx[0] - g[0]), L = 13 * sc;   // the goal pose, as a planner draws it
+    const g = goals[goalI], h = goalYaw(goalI), L = 13 * sc;   // the goal pose, as a planner draws it
     ctx.save(); ctx.translate(g[0], g[1]); ctx.rotate(h);
     ctx.globalAlpha = 0.9; ctx.fillStyle = col.accent; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.moveTo(-L / 2, 0); ctx.lineTo(L / 2 - 3, 0); ctx.stroke();
@@ -657,9 +696,9 @@
       ROVER.len = 22 * sc; ROVER.wid = 15 * sc; ROVER.r = 12 * sc;
       PX_PER_M = ROVER.len / 0.447; RANGE = 12 * PX_PER_M; MAXU = 6 * PX_PER_M; SPEED = 42 * sc;
       const first = !goals.length;
-      buildScene(); head = tail = 0; eHead = eTail = 0; route = null;
+      buildScene(); head = tail = 0; eHead = eTail = 0; route = null; aligning = false; yawOf = [];
       if (first) { rover.x = start.x; rover.y = start.y; rover.heading = Math.PI / 2; goalI = 0; }
-      else { let best = openN, bd = Infinity; for (let i = openN; i < goals.length; i++) { const d = Math.hypot(goals[i][0] - rover.x, goals[i][1] - rover.y); if (d < bd) { bd = d; best = i; } } goalI = nextGoal(best); }
+      else { let best = openN, bd = Infinity; for (let i = openN; i < goals.length; i++) { const d = Math.hypot(goals[i][0] - rover.x, goals[i][1] - rover.y); if (d < bd) { bd = d; best = i; } } goalI = nextGoal(best); cameFrom = best; }
     }
     measure(); syncFrame(); placeEgg();
     if (reduced) drawStatic();
