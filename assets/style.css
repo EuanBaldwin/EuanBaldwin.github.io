@@ -46,11 +46,13 @@ img { display: block; }
   gap: 2rem;
   padding: var(--gutter);
 }
+.intro { display: flex; gap: 1.1rem; align-items: flex-start; font-size: clamp(15px, calc(0.5vw + 10px), 19px); }
+/* Cut out, so it sits straight on the page in both themes. In em of the intro's text, so it runs from the top of the first line's capitals to the last line's baseline */
+.me { flex: none; width: 3.53em; height: 3.53em; margin-top: .34em; }
 .blurb {
   margin: 0;
   max-width: 38em;
   font-weight: 600;
-  font-size: clamp(15px, calc(0.5vw + 10px), 19px);
   line-height: 1.4;
   letter-spacing: -0.005em;
 }
@@ -238,9 +240,19 @@ body.sub { padding-top: 64px; }   /* the bar plus a little air, so the page star
   .roles .when { grid-column: 3; grid-row: 1 / span 2; }
   .entries > div { grid-template-columns: 1fr; gap: .75rem; }
 }
+/* Below this the icons beside the intro would wrap it past three lines, so they move under it:
+   photo in its own column, intro and icons sharing the column beside it */
+@media (max-width: 859px) {
+  .top { display: grid; grid-template-columns: auto 1fr; column-gap: 1.1rem; row-gap: 1rem; }
+  .intro { display: contents; }
+  .me { grid-row: 1 / span 2; grid-column: 1; }
+  .blurb { grid-row: 1; grid-column: 2; }
+  .top > .utility { grid-row: 2; grid-column: 2; }
+}
 @media (max-width: 600px) {
-  .top { flex-direction: column; gap: 1rem; align-items: flex-end; }   /* icons right-aligned under the intro */
-  .blurb { font-size: 16px; align-self: stretch; }
+  .top { column-gap: 14px; }
+  .me { width: 64px; height: 64px; }
+  .blurb { font-size: 16px; }
   .foot { flex-wrap: wrap; row-gap: .25rem; }   /* stays one row across the bottom on phones */
 }
 @media (prefers-reduced-motion: reduce) {
